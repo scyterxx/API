@@ -1,0 +1,43 @@
+[workspace]
+resolver = "2"
+members = ["bandix", "bandix-common", "bandix-ebpf"]
+default-members = ["bandix", "bandix-common"]
+
+[workspace.package]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# Fixed to latest commit hash (latest 2024)
+aya = { git = "https://github.com/aya-rs/aya", rev = "a01b1d8b76d1ea4a0229edf595ebe1473a33636b", default-features = false }
+aya-build = { git = "https://github.com/aya-rs/aya", rev = "a01b1d8b76d1ea4a0229edf595ebe1473a33636b", default-features = false }
+aya-ebpf = { git = "https://github.com/aya-rs/aya", rev = "a01b1d8b76d1ea4a0229edf595ebe1473a33636b", default-features = false }
+aya-log = { git = "https://github.com/aya-rs/aya", rev = "a01b1d8b76d1ea4a0229edf595ebe1473a33636b", default-features = false }
+aya-log-ebpf = { git = "https://github.com/aya-rs/aya", rev = "a01b1d8b76d1ea4a0229edf595ebe1473a33636b", default-features = false }
+network-types = { version = "0.0.8", default-features = false }
+ctrlc = { version = "3.4.7" }
+anyhow = { version = "1", default-features = false }
+# `std` feature is currently required to build `clap`.
+#
+# See https://github.com/clap-rs/clap/blob/61f5ee5/clap_builder/src/lib.rs#L15.
+clap = { version = "4.5.40", features = ["derive"] }
+env_logger = { version = "0.11.5", default-features = false }
+libc = { version = "0.2.159", default-features = false }
+log = { version = "0.4.22", default-features = false }
+tokio = { version = "1.40.0", default-features = false }
+which = { version = "6.0.0", default-features = false }
+
+
+# Optimize compilation size
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+debug = 0
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+[profile.release.package.bandix-ebpf]
+debug = 0
+codegen-units = 1

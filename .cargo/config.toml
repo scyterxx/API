@@ -1,0 +1,17 @@
+# ==============================================================================
+# KONFIGURASI CROSS-COMPILATION CARGO
+# File ini harus berada di: .cargo/config.toml
+# ==============================================================================
+
+# --- AARCH64 (ARM64) ---
+# Target ini sudah berhasil, kita hanya perbaiki panic=abort dan hapus flags MIPS yang salah.
+
+[target.aarch64-unknown-linux-musl]
+linker = "/opt/musl-cross/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc"
+
+rustflags = [
+    "-C", "target-feature=-crt-static",
+    "-C", "link-arg=-dynamic",
+    # Mencegah panic=unwind yang menimpa [profile.release]
+    "-C", "panic=abort", 
+]
