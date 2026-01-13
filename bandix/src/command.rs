@@ -626,6 +626,9 @@ async fn run_service(options: &Options) -> Result<(), anyhow::Error> {
 
     // 启动 Web 服务器
     let api_router = monitor_manager.get_api_router().clone();
+    let axum_router = axum::Router::new();
+// PANGGIL INI: Agar endpoint /api/flush terdaftar
+let final_router = crate::api::extend_router_with_flush(axum_router);
     let options_for_web = options.clone();
     let shutdown_notify_for_web = shutdown_notify.clone();
     let web_task = tokio::spawn(async move {
