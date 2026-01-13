@@ -124,7 +124,7 @@ impl ApiRouter {
             router, // atau apapun nama field internalnya di sana
         }
     }
-}
+
     /// Register an API handler for a module
     pub fn register_handler(&mut self, handler: ApiHandler) {
         self.handlers.insert(handler.module_name().to_string(), handler);
