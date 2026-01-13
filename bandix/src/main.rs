@@ -15,18 +15,20 @@ async fn main() -> Result<(), anyhow::Error> {
     let options = Options::parse();
 
     tokio::select! {
-        res = run(options) => { /* ... */ },
+        _res = run(options) => { // Gunakan _res agar warning hilang
+            log::info!("Program utama berhenti.");
+        },
         _ = install_signal_handlers() => {
-            log::info!("Signal received, stopping...");
+            log::info!("Sinyal terminasi diterima.");
         }
     }
 
-    // PANGGIL INI agar data benar-benar masuk ke disk sebelum aplikasi mati
-    log::info!("Executing final data flush...");
+    // PANGGIL INI SEKARANG (Hapus warning unused import)
+    log::info!("Sedang menyimpan data ke disk (Final Flush)...");
     crate::monitor::flush_all().await; 
+    log::info!("Penyimpanan selesai. Keluar.");
 
     Ok(())
-}
 
 use tokio::signal::unix::{signal, SignalKind};
 use crate::command::flush_all;

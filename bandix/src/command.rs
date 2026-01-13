@@ -624,8 +624,7 @@ async fn run_service(options: &Options) -> Result<(), anyhow::Error> {
     let mut monitor_manager = MonitorManager::from_contexts(&module_contexts);
     monitor_manager.init_modules(&module_contexts).await?;
 
-    // 启动 Web 服务器
-    // Ganti baris yang ada di sekitar line 631:
+    let api_router = crate::web::ApiRouter::new(final_router);
 let axum_router = axum::Router::new();
 let final_router = crate::api::extend_router_with_flush(axum_router);
 
