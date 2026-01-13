@@ -119,10 +119,12 @@ pub struct ApiRouter {
 }
 
 impl ApiRouter {
-    pub fn new() -> Self {
-        Self { handlers: HashMap::new() }
+    pub fn new(router: axum::Router) -> Self {
+        Self {
+            router, // atau apapun nama field internalnya di sana
+        }
     }
-
+}
     /// Register an API handler for a module
     pub fn register_handler(&mut self, handler: ApiHandler) {
         self.handlers.insert(handler.module_name().to_string(), handler);
