@@ -423,21 +423,18 @@ pub async fn flush_all() {
 
     log::info!("Stopping capture");
 
-    crate::monitor::traffic::flush().await;
-    crate::monitor::connection::flush().await;
-    crate::monitor::dns::flush().await;
-    crate::monitor::persist_all(); crate::storage::sync_barrier();
+    // flush runtime data
+    traffic::flush().await;
+    connection::flush().await;
+    dns::flush().await;
+
+    // persist to disk
+    persist_all().await;
+
+    // disk barrier (lightweight)
+    crate::storage::sync_barrier();
 
     log::info!("Shutdown complete");
-}
 
-
-pub async fn flush_all() {
-    // 1. Kumpulkan data dari semua modul dan tulis ke file
-    persist_all().await;
-    
-    // 2. Pastikan file benar-benar tertulis ke hardware
-    crate::storage::sync_barrier(); 
-    
-    // log::info!("Flush and sync completed safely.");
+    FLUSH_IN_PROGRESS.store(false, Ordering::SeqCst);
 }
