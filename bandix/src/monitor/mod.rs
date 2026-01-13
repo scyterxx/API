@@ -426,13 +426,18 @@ pub async fn flush_all() {
     crate::monitor::traffic::flush().await;
     crate::monitor::connection::flush().await;
     crate::monitor::dns::flush().await;
-    crate::monitor::persist_all(); crate::storage::sync_barrier().await;
+    crate::monitor::persist_all(); crate::storage::sync_barrier();
 
     log::info!("Shutdown complete");
 }
 
 
-pub async fn persist_all() { 
-    // Pastikan menggunakan kurung kurawal, bukan titik koma setelah nama fungsi
+pub async fn flush_all() {
+    // 1. Kumpulkan data dari semua modul dan tulis ke file
+    persist_all().await;
+    
+    // 2. Pastikan file benar-benar tertulis ke hardware
     crate::storage::sync_barrier(); 
+    
+    // log::info!("Flush and sync completed safely.");
 }
