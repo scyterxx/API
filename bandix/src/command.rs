@@ -639,7 +639,11 @@ async fn run_service(options: &Options) -> Result<(), anyhow::Error> {
         start_hostname_refresh_task(Arc::clone(&shared_hostname_bindings), options.clone(), shutdown_notify.clone());
 
     // 通过 MonitorManager 为所有模块启动内部循环
-    let mut tasks = monitor_manager.start_modules(module_contexts, shutdown_notify.clone()).await?;
+    let mut tasks: Vec<tokio::task::JoinHandle<()>> = monitor_manager
+    .start_modules(module_contexts, shutdown_notify.clone())
+    .await?;
+
+
 
     tasks.push(web_task);
     tasks.push(hostname_refresh_task);

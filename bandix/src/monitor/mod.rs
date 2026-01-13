@@ -432,5 +432,7 @@ pub async fn flush_all() {
 }
 
 
-pub async fn persist_all(); crate::storage::sync_barrier() {
+pub async fn persist_all() { 
+    // Pastikan menggunakan kurung kurawal, bukan titik koma setelah nama fungsi
+    crate::storage::sync_barrier(); 
 }

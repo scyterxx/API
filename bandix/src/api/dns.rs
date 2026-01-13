@@ -236,10 +236,11 @@ impl DnsApiHandler {
 
 impl DnsApiHandler {
     fn _generate_test_data(dns_queries: &Arc<Mutex<Vec<crate::monitor::DnsQueryRecord>>>) {
-        let mut queries = match dns_queries.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
+        // Beritahu Rust ini adalah MutexGuard yang membungkus Vec
+let mut queries = match dns_queries.lock() {
+    Ok(guard) => guard,
+    Err(p) => p.into_inner(),
+};
 
         if queries.len() > 100 {
             return;
@@ -607,7 +608,11 @@ impl DnsApiHandler {
         use std::collections::HashMap;
 
         // 获取所有 DNS 查询
-        let queries = if let Ok(queries) = self.dns_queries.lock() { queries.clone() } else { vec![] };
+        let queries: Vec<_> = if let Ok(queries_guard) = self.dns_queries.lock() { 
+    queries_guard.clone() 
+} else { 
+    vec![] 
+};
 
         // 获取最新的主机名绑定以进行动态查找
         let hostname_bindings = if let Ok(bindings) = self.hostname_bindings.lock() {
