@@ -411,30 +411,36 @@ impl MonitorManager {
     }
 }
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 
+// Letakkan di tingkat modul (global) agar bisa diakses jika diperlukan oleh fungsi lain
 static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
+/// 1. Menyimpan data dari memori ke Buffer OS (File cache)
+pub async fn persist_all() {
+    log::debug!("Starting persistence for all modules...");
+    // Memanggil fungsi flush asinkron dari tiap sub-modul
+    crate::monitor::connection::flush().await;
+    crate::monitor::dns::flush().await;
+    crate::monitor::traffic::flush().await;
+}
+
+/// 2. Fungsi Global untuk sinkronisasi total sampai ke hardware fisik
 pub async fn flush_all() {
+    // Gunakan static global yang sudah didefinisikan di atas
     if FLUSH_IN_PROGRESS.swap(true, Ordering::SeqCst) {
-        log::warn!("flush already in progress, skipping");
+        log::warn!("Flush already in progress, skipping...");
         return;
     }
 
-    log::info!("Stopping capture");
-
-    // flush runtime data
-    traffic::flush().await;
-    connection::flush().await;
-    dns::flush().await;
-
-    // persist to disk
+    // A. Proses penulisan data asinkron (Memory -> Disk Cache)
     persist_all().await;
 
-    // disk barrier (lightweight)
+    // B. Paksa Hardware menulis data (Disk Cache -> Physical Disk)
+    // sync_barrier() adalah blocking syscall (syncfs/sync)
     crate::storage::sync_barrier();
 
-    log::info!("Shutdown complete");
-
+    // Reset status agar bisa dipanggil kembali nanti
     FLUSH_IN_PROGRESS.store(false, Ordering::SeqCst);
+    log::info!("Data successfully flushed and hardware sync completed.");
 }
