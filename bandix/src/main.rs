@@ -9,13 +9,18 @@ mod utils;
 mod web;
 use clap::Parser;
 use command::{run, Options};
+use tokio::signal::unix::{signal, SignalKind};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    // 1. Parsing argumen
     let options = Options::parse();
 
+    log::info!("Bandix starting up...");
+
+    // 2. Jalankan signal handler dan program utama secara konkuren
     tokio::select! {
-        _res = run(options) => { // Gunakan _res agar warning hilang
+        _res = run(options) => {
             log::info!("Program utama berhenti.");
         },
         _ = install_signal_handlers() => {
@@ -23,27 +28,21 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     }
 
-    // PANGGIL INI SEKARANG (Hapus warning unused import)
-    log::info!("Sedang menyimpan data ke disk (Final Flush)...");
-    crate::monitor::flush_all().await; 
-    log::info!("Penyimpanan selesai. Keluar.");
+    // 3. Final Flush: Jaring pengaman terakhir agar data tersimpan ke disk
+    log::info!("Executing final data flush...");
+    crate::monitor::flush_all().await;
+    log::info!("Bandix shutdown complete.");
 
     Ok(())
-
-use tokio::signal::unix::{signal, SignalKind};
-use crate::command::flush_all;
+} // <--- Pastikan ini adalah penutup fungsi main
 
 async fn install_signal_handlers() {
     let mut sigterm = signal(SignalKind::terminate()).unwrap();
     let mut sigint  = signal(SignalKind::interrupt()).unwrap();
-    let mut sighup  = signal(SignalKind::hangup()).unwrap();
 
     tokio::select! {
         _ = sigterm.recv() => { log::info!("SIGTERM received"); },
         _ = sigint.recv() => { log::info!("SIGINT received"); },
-        _ = sighup.recv() => { log::info!("SIGHUP received"); },
     }
-    
-    // Jangan exit di sini. 
-    // Return dari fungsi ini akan memicu tokio::select! di main untuk lanjut ke tahap flush.
+    // Cukup return agar select! di main berlanjut ke flush_all
 }
