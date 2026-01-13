@@ -24,6 +24,7 @@ echo "=========================================="
 declare -A TOOLCHAINS=(
 
     ["aarch64-linux-musl-cross"]="aarch64-linux-musl-gcc"
+
 )
 
 # 选择包管理器
@@ -101,8 +102,15 @@ rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu || {
 }
 
 RUST_TARGETS=(
-    
+    "x86_64-unknown-linux-musl"
     "aarch64-unknown-linux-musl"
+    "armv7-unknown-linux-musleabihf"
+    "armv7-unknown-linux-musleabi"
+    "armv5te-unknown-linux-musleabi"
+    "arm-unknown-linux-musleabi"
+    "arm-unknown-linux-musleabihf"
+    "riscv64gc-unknown-linux-musl"
+    "powerpc64le-unknown-linux-musl"
 )
 
 echo "安装/更新 Rust 交叉目标..."

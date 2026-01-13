@@ -39,10 +39,11 @@ fi
 
 # Build target platform lists
 DEFAULT_TARGETS=(
-  
+
   # AArch64 (ARM64) architecture
   "aarch64-unknown-linux-musl"
-)
+  
+  )
 
 # Helper to package build artifacts
 package_target() {
