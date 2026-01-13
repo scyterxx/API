@@ -12,33 +12,18 @@ use command::{run, Options};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    // 1. Parsing argumen command line
     let options = Options::parse();
 
-    // 2. Inisialisasi logging (pastikan ini ada agar log::info terlihat)
-    // setup_logging(); 
-
-    log::info!("Bandix starting up...");
-
-    // 3. Jalankan signal handler dan program utama secara konkuren
-    // Menggunakan tokio::select memastikan jika salah satu selesai, 
-    // kita bisa menangani penutupan dengan rapi.
     tokio::select! {
-        res = run(options) => {
-            if let Err(e) = res {
-                log::error!("Bandix execution error: {}", e);
-                return Err(e);
-            }
-        },
+        res = run(options) => { /* ... */ },
         _ = install_signal_handlers() => {
-            log::info!("Termination signal received, shutting down Bandix...");
+            log::info!("Signal received, stopping...");
         }
     }
 
-    // 4. Final Flush sebelum benar-benar keluar (Lapis pengaman terakhir)
-    log::info!("Performing final data flush...");
-    crate::monitor::flush_all().await;
-    log::info!("Bandix shutdown complete.");
+    // PANGGIL INI agar data benar-benar masuk ke disk sebelum aplikasi mati
+    log::info!("Executing final data flush...");
+    crate::monitor::flush_all().await; 
 
     Ok(())
 }

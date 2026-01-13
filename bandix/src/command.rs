@@ -625,17 +625,19 @@ async fn run_service(options: &Options) -> Result<(), anyhow::Error> {
     monitor_manager.init_modules(&module_contexts).await?;
 
     // 启动 Web 服务器
-    let api_router = monitor_manager.get_api_router().clone();
-    let axum_router = axum::Router::new();
-// PANGGIL INI: Agar endpoint /api/flush terdaftar
+    // Ganti baris yang ada di sekitar line 631:
+let axum_router = axum::Router::new();
 let final_router = crate::api::extend_router_with_flush(axum_router);
-    let options_for_web = options.clone();
-    let shutdown_notify_for_web = shutdown_notify.clone();
-    let web_task = tokio::spawn(async move {
-        if let Err(e) = web::start_server(options_for_web, api_router, shutdown_notify_for_web).await {
-            log::error!("Web server error: {}", e);
-        }
-    });
+
+let options_for_web = options.clone();
+let shutdown_notify_for_web = shutdown_notify.clone();
+
+let web_task = tokio::spawn(async move {
+    // PASTIKAN di sini menggunakan 'final_router'
+    if let Err(e) = web::start_server(options_for_web, final_router, shutdown_notify_for_web).await {
+        log::error!("Web server error: {}", e);
+    }
+});
 
     // 启动主机名刷新任务
     let hostname_refresh_task =
