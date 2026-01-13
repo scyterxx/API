@@ -9,7 +9,7 @@ use crate::storage::traffic::{LongTermRingManager, RealtimeRingManager, Schedule
 use std::collections::HashMap as StdHashMap;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // 从连接模块重新导出 ConnectionModuleContext
 pub use connection::ConnectionModuleContext;
@@ -411,7 +411,7 @@ impl MonitorManager {
     }
 }
 
-use std::sync::atomic::{AtomicBool, Ordering};
+
 
 // Letakkan di tingkat modul (global) agar bisa diakses jika diperlukan oleh fungsi lain
 static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);

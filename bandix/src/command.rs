@@ -704,7 +704,7 @@ pub async fn run(options: Options) -> Result<(), anyhow::Error> {
 
 
 use crate::monitor::{traffic, dns, connection};
-use crate::ebpf::shared;
+// use crate::ebpf::shared;
 
 pub async fn flush_all() {
     log::info!("Stopping capture");
@@ -715,10 +715,10 @@ pub async fn flush_all() {
     log::info!("Flushing traffic statistics");
     traffic::flush().await;
 
-    log::info!("Flushing connections data");
+    
     connection::flush().await;
 
-    log::info!("Flushing DNS data");
+    
     dns::flush().await;
 
     log::info!("Shutdown complete");
