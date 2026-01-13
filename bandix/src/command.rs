@@ -624,16 +624,23 @@ async fn run_service(options: &Options) -> Result<(), anyhow::Error> {
     let mut monitor_manager = MonitorManager::from_contexts(&module_contexts);
     monitor_manager.init_modules(&module_contexts).await?;
 
-    let api_router = crate::web::ApiRouter::new(final_router);
+    // 1. Buat router standar dari axum
 let axum_router = axum::Router::new();
+
+// 2. Tambahkan endpoint /api/flush (ini menghasilkan axum::Router)
 let final_router = crate::api::extend_router_with_flush(axum_router);
+
+// 3. Buat struct ApiRouter (Gunakan crate::api karena crate::web bersifat private)
+// Sesuai error E0061 & E0308, kita buat instance baru lalu isi routernya
+let mut api_router = crate::api::ApiRouter::new();
+api_router.router = final_router; // Memasukkan axum::Router ke dalam ApiRouter
 
 let options_for_web = options.clone();
 let shutdown_notify_for_web = shutdown_notify.clone();
 
 let web_task = tokio::spawn(async move {
-    // PASTIKAN di sini menggunakan 'final_router'
-    if let Err(e) = web::start_server(options_for_web, final_router, shutdown_notify_for_web).await {
+    // 4. Kirim api_router yang sudah lengkap ke start_server
+    if let Err(e) = web::start_server(options_for_web, api_router, shutdown_notify_for_web).await {
         log::error!("Web server error: {}", e);
     }
 });
