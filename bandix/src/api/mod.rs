@@ -126,13 +126,14 @@ pub struct ApiRouter {
 
 // Lokasi: bandix/src/api/mod.rs (sekitar baris 126)
 impl ApiRouter {
-pub fn new() -> Self {
+    // Pastikan ada kata 'pub' dan tidak ada parameter di dalam ()
+    pub fn new() -> Self {
         Self {
             handlers: HashMap::new(),
         }
     }
 
-    // WAJIB ADA: Fungsi pendaftaran handler (Publik)
+    // Pastikan ini juga publik agar bisa dipakai di monitor/mod.rs
     pub fn register_handler(&mut self, handler: ApiHandler) {
         self.handlers.insert(handler.module_name().to_string(), handler);
     }

@@ -714,37 +714,46 @@ pub async fn run(options: Options) -> Result<(), anyhow::Error> {
 use crate::monitor::{traffic, dns, connection};
 // use crate::ebpf::shared;
 
+// ... (lanjutan dari fungsi run)
+
+/// Enum untuk Subcommands (Pastikan ini ada di bagian atas file atau di modul main)
+#[derive(Debug, Parser, Clone)]
+pub enum Commands {
+    Monitor(Options),
+    Flush,
+}
+
+/// Fungsi utama untuk menangani logika berdasarkan Command yang dipilih
+pub async fn handle_command(args: Options, command: Commands) -> Result<(), anyhow::Error> {
+    match command {
+        Commands::Monitor(opt) => {
+            // Jika user menjalankan monitor biasa
+            run(opt).await?;
+        }
+        Commands::Flush => { 
+            // Baris 735 - Perbaikan: Sekarang berada di dalam match yang benar
+            log::info!("Manual flush triggered via CLI...");
+            // Memanggil flush_all() untuk menyimpan data ke disk
+            flush_all().await;
+            log::info!("Data successfully flushed to storage.");
+        }
+    }
+    Ok(())
+}
+
 pub async fn flush_all() {
-    log::info!("Stopping capture");
+    log::info!("Starting flush sequence...");
 
-    log::info!("Detaching shared ingress");
-    log::info!("Detaching shared egress");
-
-    log::info!("Flushing traffic statistics");
+    log::info!("Flushing traffic statistics...");
     traffic::flush().await;
 
     
     connection::flush().await;
 
-    
     dns::flush().await;
 
-    log::info!("Shutdown complete");
+    // Tambahkan sync hardware agar data benar-benar tertulis di OpenWrt flash
+    let _ = std::process::Command::new("sync").status();
+    
+    log::info!("Flush complete. Hardware sync executed.");
 }
-
-Commands::Flush => {
-   // kosong / placeholder
-   crate::monitor::flush_all().await;
- }
-
-// Pastikan berada di dalam blok match
-    match args.command {
-        Commands::Monitor(monitor_args) => {
-            run_monitor(monitor_args).await?;
-        }
-        Commands::Flush => { // Baris 735
-            log::info!("Manual flush triggered via CLI...");
-            crate::monitor::flush_all().await;
-            return Ok(());
-        }
-    }
