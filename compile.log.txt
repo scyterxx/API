@@ -1,4 +1,5 @@
-rust-src already installed for nightly
+rust-src component for nightly (required for build-std)...
+✓ rust-src already installed for nightly
 Starting build for all target platforms...
 ========================================
 
@@ -209,3 +210,14 @@ error: could not compile `bandix` (bin "bandix") due to 18 previous errors; 11 w
 ----------------------------------------
 
 Build completion summary:
+========================================
+✓ Successfully built: 0 targets
+✗ Failed builds: 1 targets
+Failed targets:
+  - aarch64-unknown-linux-musl
+
+Release packages located in release directory
+Disk usage:
+  Total size: 4.0K	release
+⚠ Some platforms failed to build, please check error messages
+Error: Process completed with exit code 1.
