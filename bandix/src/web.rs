@@ -3,8 +3,17 @@ use crate::command::Options;
 use chrono::Local;
 use log::{debug, error, info};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
+
+// Port helper untuk logging API requests
+static CURRENT_PORT: AtomicU16 = AtomicU16::new(0);
+
+/// Get current port for API logging
+pub fn get_port() -> u16 {
+    CURRENT_PORT.load(Ordering::Relaxed)
+}
 
 // 简单的 HTTP 服务器，仅依赖 tokio
 pub async fn start_server(options: Options, api_router: ApiRouter, shutdown_notify: Arc<tokio::sync::Notify>) -> Result<(), anyhow::Error> {
@@ -14,6 +23,9 @@ pub async fn start_server(options: Options, api_router: ApiRouter, shutdown_noti
     let addr = format!("{}:{}", host, options.port());
     let listener = TcpListener::bind(&addr).await?;
     info!("HTTP server listening on {}", addr);
+    
+    // ✅ STORE PORT FOR API LOGGING
+    CURRENT_PORT.store(options.port(), Ordering::Relaxed);
 
     loop {
         tokio::select! {

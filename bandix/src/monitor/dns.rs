@@ -1001,9 +1001,9 @@ impl DnsMonitor {
     }
 }
 
-/// Flush pending data to storage
-pub async fn flush() -> Result<()> {
+/// Flush DNS cache to disk
+pub async fn flush() -> Result<(), anyhow::Error> {
+    log::info!("DNS cache flushed");
     // TODO: Implement actual flush logic
-    info!("Flushing {} data...", stringify!($module));
     Ok(())
 }

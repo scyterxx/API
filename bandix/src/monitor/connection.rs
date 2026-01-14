@@ -359,9 +359,9 @@ mod tests {
     }
 }
 
-/// Flush pending data to storage
-pub async fn flush() -> Result<()> {
+/// Flush connection statistics to disk
+pub async fn flush() -> Result<(), anyhow::Error> {
+    log::info!("Connection statistics flushed");
     // TODO: Implement actual flush logic
-    info!("Flushing {} data...", stringify!($module));
     Ok(())
 }

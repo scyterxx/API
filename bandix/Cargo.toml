@@ -6,6 +6,8 @@ edition = "2021"
 license = { workspace = true }
 
 [dependencies]
+scopeguard = "1.2"
+once_cell = "1.19"
 bandix-common = { path = "../bandix-common", features = ["user", "serde"] }
 
 anyhow = { workspace = true, default-features = true }
