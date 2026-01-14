@@ -32,7 +32,7 @@ impl TrafficMonitor {
             export_latest: Arc::new(TokioMutex::new(None)),
         }
     }
-}
+
 
     pub async fn start(&self, ctx: &mut TrafficModuleContext, shutdown_notify: std::sync::Arc<tokio::sync::Notify>) -> Result<()> {
         self.start_monitoring_loop(ctx, shutdown_notify).await
