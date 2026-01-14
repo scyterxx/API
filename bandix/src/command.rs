@@ -737,8 +737,14 @@ Commands::Flush => {
    crate::monitor::flush_all().await;
  }
 
-Commands::Flush => {
-            log::info!("Executing manual flush...");
+// Pastikan berada di dalam blok match
+    match args.command {
+        Commands::Monitor(monitor_args) => {
+            run_monitor(monitor_args).await?;
+        }
+        Commands::Flush => { // Baris 735
+            log::info!("Manual flush triggered via CLI...");
             crate::monitor::flush_all().await;
             return Ok(());
-        } // <--- Pastikan ada kurung kurawal penutup
+        }
+    }

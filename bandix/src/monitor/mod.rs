@@ -369,7 +369,7 @@ impl MonitorManager {
 
         MonitorManager {
             modules,
-            ApiRouter::new()
+            api_router: ApiRouter::new(), // Tambahkan nama field 'api_router:'
         }
     }
 
