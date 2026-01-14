@@ -1,103 +1,61 @@
-# Nuclear option: replace entire command.rs dengan yang benar
-cat > tmp/nuclear_fix.sh << 'NUCLEAR'
-#!/bin/bash
-echo "=== NUCLEAR FIX: Replacing entire command.rs ==="
+echo "=== FIXING UNCLOSED DELIMITER IN MONITOR/MOD.RS ==="
 
-# Download original dari backup atau buat baru
-if [ -f "src/command.rs.backup" ]; then
-    echo "1. Restoring from backup..."
-    cp src/command.rs.backup src/command.rs
-else
-    echo "1. Creating new command.rs..."
-    # Buat minimal command.rs
-    cat > src/command.rs << 'MINIMAL'
-use crate::device::DeviceManager;
-use crate::ebpf::shared::load_shared;
-use crate::monitor::{ConnectionModuleContext, DnsModuleContext, ModuleContext, MonitorManager, TrafficModuleContext};
-use crate::monitor::traffic;
-use crate::monitor::connection;
-use crate::monitor::dns;
-use crate::system::log_startup_info;
-use crate::utils::network_utils::get_interface_info;
-use crate::web;
+# 1. Lihat context error
+echo "1. Error at line 460: unclosed delimiter"
+echo "   Function starts at line 447: pub async fn flush_final() {"
 
-use aya::maps::Array;
-use clap::{Args, Parser};
+# 2. Tampilkan sekitar error
+echo ""
+echo "2. Showing context around error..."
+sed -n '440,470p' src/monitor/mod.rs
 
-// Flush system imports
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+# 3. Cek kurung kurawal dari line 447
+echo ""
+echo "3. Checking brace balance from line 447..."
+BRACE_COUNT=0
+for i in {447..460}; do
+    line=$(sed -n "${i}p" src/monitor/mod.rs)
+    open=$(echo "$line" | grep -o "{" | wc -l)
+    close=$(echo "$line" | grep -o "}" | wc -l)
+    BRACE_COUNT=$((BRACE_COUNT + open - close))
+    echo "Line $i: $BRACE_COUNT braces - '$line'"
+done
 
-use scopeguard;
+# 4. Cari di mana seharusnya tutup kurung
+echo ""
+echo "4. Looking for missing closing brace..."
+# Cari dari line 447 sampai akhir file
+MISSING_LINE=$(awk 'NR >= 447 { 
+    open += gsub(/{/, "") 
+    close += gsub(/}/, "")
+    if (open == 1 && close == 0 && NR > 447) {
+        print "Missing closing brace around line " NR
+        print "Current line: " $0
+    }
+}' src/monitor/mod.rs)
 
-use log::info;
-use log::LevelFilter;
-use tokio::signal;
-
-static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
-
-// [PASTE THE REST OF YOUR ORIGINAL command.rs HERE WITHOUT DUPLICATES]
-MINIMAL
+if [ -n "$MISSING_LINE" ]; then
+    echo "Found: $MISSING_LINE"
 fi
 
-# 2. Tambahkan flush_all function yang benar
-echo "2. Adding correct flush_all function..."
-cat >> src/command.rs << 'FLUSHFINAL'
+# 5. Perbaiki dengan menutup fungsi flush_final()
+echo ""
+echo "5. Fixing by adding closing brace..."
+# Cari baris terakhir dari fungsi flush_final()
+# Asumsi fungsi berakhir sebelum fungsi berikutnya
 
-/// ✅ SINGLE FLUSH PATH untuk semua skenario
-pub async fn flush_all(stop_service: bool) -> Result<(), anyhow::Error> {
-    if FLUSH_IN_PROGRESS.swap(true, Ordering::Acquire) {
-        log::warn!("Flush already in progress, skipping");
-        return Err(anyhow::anyhow!("Flush in progress"));
-    }
-    
-    scopeguard::defer!(FLUSH_IN_PROGRESS.store(false, Ordering::Release));
-    
-    log::info!("=== FLUSH SEQUENCE STARTED ===");
-    
-    if stop_service {
-        log::info!("SIGTERM/SIGINT/SIGHUP received");
-        log::info!("Stopping capture");
-        log::info!("Detaching shared ingress");
-        log::info!("Detaching shared egress");
-    }
-    
-    log::info!("[1/3] Flushing traffic statistics...");
-    traffic::flush().await?;
-    
-    log::info!("[2/3] Flushing connection statistics...");
-    connection::flush().await?;
-    
-    log::info!("[3/3] Flushing DNS cache...");
-    dns::flush().await?;
-    
-    if !stop_service {
-        log::info!("Interval flushers remain active");
-    }
-    
-    if stop_service {
-        log::info!("Final fsync barrier...");
-        let _ = std::process::Command::new("sync").status();
-        log::info!("Shutdown complete");
-        log::info!("Service stopped / restarting");
-    }
-    
-    log::info!("=== FLUSH COMPLETE ===");
-    Ok(())
-}
+# Cari pattern fungsi berikutnya setelah line 447
+NEXT_FUNC=$(awk 'NR > 447 && /^pub (async )?fn [a-zA-Z_]/ {print NR ": " $0; exit}' src/monitor/mod.rs)
 
-/// Graceful shutdown handler
-pub async fn graceful_shutdown(shutdown_notify: Arc<tokio::sync::Notify>) -> Result<(), anyhow::Error> {
-    log::info!("Signal received, graceful shutdown initiated");
-    flush_all(true).await?;
-    shutdown_notify.notify_waiters();
-    Ok(())
-}
-FLUSHFINAL
-
-echo "✅ Nuclear fix applied!"
-NUCLEAR
-
-chmod +x tmp/nuclear_fix.sh
-tmp/nuclear_fix.sh
+if [ -n "$NEXT_FUNC" ]; then
+    NEXT_LINE=$(echo "$NEXT_FUNC" | cut -d: -f1)
+    echo "Next function starts at line: $NEXT_LINE"
+    
+    # Tambahkan } sebelum fungsi berikutnya
+    sed -i "$((NEXT_LINE - 1))i\\}" src/monitor/mod.rs
+    echo "✅ Added closing brace before line $NEXT_LINE"
+else
+    # Jika tidak ditemukan, tambahkan di akhir file
+    echo "}"
+    echo "✅ Added closing brace at end of file"
+fi
