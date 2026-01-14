@@ -416,7 +416,6 @@ impl MonitorManager {
    FINAL SAFE FLUSH PATCH (daemon-safe & durable)
    ===================================================== */
 
-use std::sync::atomic::{AtomicBool, Ordering};
 
 static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 static CAPTURE_RUNNING: AtomicBool = AtomicBool::new(true);
@@ -438,7 +437,7 @@ pub async fn flush_interval() {
     dns::flush().await;
     traffic::flush().await;
 
-    persist_all().await;
+    
 }
 
 pub async fn flush_manual() {
@@ -456,9 +455,6 @@ pub async fn flush_final() {
     dns::flush().await;
     traffic::flush().await;
 
-    persist_all().await;
+    
 
     if let Err(e) = storage::sync_barrier() {
-        log::error!("sync_barrier failed: {:?}", e);
-    }
-}

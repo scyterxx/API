@@ -1,0 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use scopeguard;
+
+static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
