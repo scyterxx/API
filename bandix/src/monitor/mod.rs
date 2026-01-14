@@ -381,7 +381,6 @@ MonitorManager {
             
                 }
         }
-    }
 
     /// 初始化所有启用的模块
     pub async fn init_modules(&mut self, contexts: &[ModuleContext]) -> Result<(), anyhow::Error> {
