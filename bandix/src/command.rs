@@ -1,29 +1,27 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use scopeguard;
+
+static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use scopeguard;
+
+static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
 use crate::device::DeviceManager;
+
 use crate::ebpf::shared::load_shared;
 use crate::monitor::{ConnectionModuleContext, DnsModuleContext, ModuleContext, MonitorManager, TrafficModuleContext};
-use crate::monitor::traffic;
-use crate::monitor::connection;
-use crate::monitor::dns;
 use crate::system::log_startup_info;
 use crate::utils::network_utils::get_interface_info;
 use crate::web;
-
 use aya::maps::Array;
 use clap::{Args, Parser};
-
-// ✅ FLUSH SYSTEM IMPORTS (HANYA SEKALI)
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
-use scopeguard;
-
 use log::info;
 use log::LevelFilter;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio::signal;
-
-// ✅ ATOMIC FLUSH GUARD (HANYA SEKALI)
-static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 /// 所有命令共享的通用参数
 #[derive(Debug, Args, Clone)]
@@ -143,52 +141,62 @@ pub struct Options {
     pub connection: ConnectionArgs,
 }
 
-// [KEEP ALL THE EXISTING IMPLEMENTATION METHODS...]
-// Copy dari file backup atau biarkan seperti adanya
+impl Options {
+    /// 从通用参数获取接口
+    pub fn iface(&self) -> &str {
+        &self.common.iface
+    }
 
-/// ✅ SINGLE FLUSH PATH untuk semua skenario
-pub async fn flush_all(stop_service: bool) -> Result<(), anyhow::Error> {
-    if FLUSH_IN_PROGRESS.swap(true, Ordering::Acquire) {
-        log::warn!("Flush already in progress, skipping");
-        return Err(anyhow::anyhow!("Flush in progress"));
+    /// 从通用参数获取端口
+    pub fn port(&self) -> u16 {
+        self.common.port
     }
-    
-    scopeguard::defer!(FLUSH_IN_PROGRESS.store(false, Ordering::Release));
-    
-    log::info!("=== FLUSH SEQUENCE STARTED ===");
-    
-    if stop_service {
-        log::info!("SIGTERM/SIGINT/SIGHUP received");
-        log::info!("Stopping capture");
-        log::info!("Detaching shared ingress");
-        log::info!("Detaching shared egress");
-    }
-    
-    log::info!("[1/3] Flushing traffic statistics...");
-    traffic::flush().await?;
-    
-    log::info!("[2/3] Flushing connection statistics...");
-    connection::flush().await?;
-    
-    log::info!("[3/3] Flushing DNS cache...");
-    dns::flush().await?;
-    
-    if !stop_service {
-        log::info!("Interval flushers remain active");
-    }
-    
-    if stop_service {
-        log::info!("Final fsync barrier...");
-        let _ = std::process::Command::new("sync").status();
-        log::info!("Shutdown complete");
-        log::info!("Service stopped / restarting");
-    }
-    
-    log::info!("=== FLUSH COMPLETE ===");
-    Ok(())
-}
 
-// [KEEP THE REST OF THE FILE FROM BACKUP...]
+    /// 从通用参数获取数据目录
+    pub fn data_dir(&self) -> &str {
+        &self.common.data_dir
+    }
+
+    /// 从通用参数获取日志级别
+    pub fn log_level(&self) -> &str {
+        &self.common.log_level
+    }
+
+    /// 从流量参数获取启用流量
+    pub fn enable_traffic(&self) -> bool {
+        self.traffic.enable_traffic
+    }
+
+    /// 从流量参数获取流量保留秒数
+    pub fn traffic_retention_seconds(&self) -> u32 {
+        self.traffic.traffic_retention_seconds
+    }
+
+    /// 从流量参数获取流量持久化间隔秒数
+    pub fn traffic_flush_interval_seconds(&self) -> u32 {
+        self.traffic.traffic_persist_interval_seconds
+    }
+
+    /// 从流量参数获取流量持久化历史
+    pub fn traffic_persist_history(&self) -> bool {
+        self.traffic.traffic_persist_history
+    }
+
+    pub fn traffic_export_url(&self) -> &str {
+        &self.traffic.traffic_export_url
+    }
+
+    pub fn traffic_event_url(&self) -> &str {
+        &self.traffic.traffic_event_url
+    }
+
+    pub fn traffic_additional_subnets(&self) -> &str {
+        &self.traffic.traffic_additional_subnets
+    }
+
+    /// 从 DNS 参数获取启用 DNS
+    pub fn enable_dns(&self) -> bool {
+        self.dns.enable_dns
     }
 
     /// 从 DNS 参数获取 DNS 最大记录数
@@ -697,5 +705,55 @@ pub async fn run(options: Options) -> Result<(), anyhow::Error> {
 
     run_service(&options).await?;
 
+    Ok(())
+}
+
+/// ✅ SINGLE FLUSH PATH untuk semua skenario
+pub async fn flush_all(stop_service: bool) -> Result<(), anyhow::Error> {
+    if FLUSH_IN_PROGRESS.swap(true, Ordering::Acquire) {
+        log::warn!("Flush already in progress, skipping");
+        return Err(anyhow::anyhow!("Flush in progress"));
+    }
+    
+    scopeguard::defer!(FLUSH_IN_PROGRESS.store(false, Ordering::Release));
+    
+    log::info!("=== FLUSH SEQUENCE STARTED ===");
+    
+    if stop_service {
+        log::info!("SIGTERM/SIGINT/SIGHUP received");
+        log::info!("Stopping capture");
+        log::info!("Detaching shared ingress");
+        log::info!("Detaching shared egress");
+    }
+    
+    log::info!("[1/3] Flushing traffic statistics...");
+    traffic::flush().await?;
+    
+    log::info!("[2/3] Flushing connection statistics...");
+    connection::flush().await?;
+    
+    log::info!("[3/3] Flushing DNS cache...");
+    dns::flush().await?;
+    
+    if !stop_service {
+        log::info!("Interval flushers remain active");
+    }
+    
+    if stop_service {
+        log::info!("Final fsync barrier...");
+        let _ = std::process::Command::new("sync").status();
+        log::info!("Shutdown complete");
+        log::info!("Service stopped / restarting");
+    }
+    
+    log::info!("=== FLUSH COMPLETE ===");
+    Ok(())
+}
+
+/// Graceful shutdown handler
+pub async fn graceful_shutdown(shutdown_notify: Arc<tokio::sync::Notify>) -> Result<(), anyhow::Error> {
+    log::info!("Signal received, graceful shutdown initiated");
+    flush_all(true).await?;
+    shutdown_notify.notify_waiters();
     Ok(())
 }

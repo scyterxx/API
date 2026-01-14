@@ -1,5 +1,3 @@
-# Nuclear option: replace entire command.rs dengan yang benar
-cat > tmp/nuclear_fix.sh << 'NUCLEAR'
 #!/bin/bash
 echo "=== NUCLEAR FIX: Replacing entire command.rs ==="
 
@@ -97,7 +95,3 @@ pub async fn graceful_shutdown(shutdown_notify: Arc<tokio::sync::Notify>) -> Res
 FLUSHFINAL
 
 echo "✅ Nuclear fix applied!"
-NUCLEAR
-
-chmod +x tmp/nuclear_fix.sh
-tmp/nuclear_fix.sh
