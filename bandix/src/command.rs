@@ -3,14 +3,8 @@ use scopeguard;
 
 static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use scopeguard;
 
-static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
-use crate::device::DeviceManager;
-
-use crate::ebpf::shared::load_shared;
 use crate::monitor::{ConnectionModuleContext, DnsModuleContext, ModuleContext, MonitorManager, TrafficModuleContext};
 use crate::system::log_startup_info;
 use crate::utils::network_utils::get_interface_info;
@@ -727,12 +721,15 @@ pub async fn flush_all(stop_service: bool) -> Result<(), anyhow::Error> {
     }
     
     log::info!("[1/3] Flushing traffic statistics...");
+use crate::monitor::traffic;
     traffic::flush().await?;
     
     log::info!("[2/3] Flushing connection statistics...");
+use crate::monitor::connection;
     connection::flush().await?;
     
     log::info!("[3/3] Flushing DNS cache...");
+use crate::monitor::dns;
     dns::flush().await?;
     
     if !stop_service {

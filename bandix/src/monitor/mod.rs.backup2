@@ -459,7 +459,7 @@ pub async fn flush_final() {
     traffic::flush().await;
 
     // 3️⃣ Persist ke disk
-//    // TODO: Implement persist_all
+//    persist_all().await;
 
     // 4️⃣ Durability barrier
     if let Err(e) = storage::sync_barrier() {
