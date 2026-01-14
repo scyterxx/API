@@ -1,9 +1,20 @@
+// DAFTARKAN MODUL DI SINI (Penting agar crate root mengenali file lain)
+mod api;
+mod command;
+mod device;
+mod ebpf;
+mod monitor;
+mod storage;
+mod system;
+mod utils;
+mod web;
 use crate::command::{run, Options};
 use clap::Parser;
 use tokio::signal::unix::{signal, SignalKind};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    // Inisialisasi Options dari CLI
     let options = Options::parse();
     log::info!("Bandix starting up on OpenWrt...");
 
@@ -17,16 +28,16 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     }
 
-    // FINAL FLUSH: Langkah paling krusial agar data tidak hilang
+    // FINAL FLUSH: Menjamin data tersimpan ke disk sebelum proses mati
     log::info!("Sedang menyimpan data terakhir ke disk...");
-    crate::monitor::flush_all().await;
+    crate::monitor::flush_all().await; 
     log::info!("Penyimpanan selesai. Bandix berhenti dengan aman.");
 
     Ok(())
 }
 
 async fn install_signal_handlers() {
-    // OpenWrt menggunakan SIGTERM untuk perintah 'service stop/restart'
+    // OpenWrt (procd) mengirim SIGTERM saat 'service restart'
     let mut sigterm = signal(SignalKind::terminate()).unwrap();
     let mut sigint  = signal(SignalKind::interrupt()).unwrap();
 

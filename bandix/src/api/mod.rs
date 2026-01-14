@@ -83,7 +83,7 @@ pub enum ApiHandler {
     Traffic(crate::api::traffic::TrafficApiHandler),
     Dns(crate::api::dns::DnsApiHandler),
     Connection(crate::api::connection::ConnectionApiHandler),
-    System,
+    System, // <--- Pastikan ini ada
 }
 
 impl ApiHandler {
