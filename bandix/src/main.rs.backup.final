@@ -8,9 +8,7 @@ mod system;
 mod utils;
 mod web;
 use clap::Parser;
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 use command::{run, Options};
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {

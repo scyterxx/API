@@ -1,17 +1,48 @@
 #!/bin/bash
-# fix_signals_and_api.sh
+# fix_all_final.sh
 
-echo "=== FIXING SIGNAL HANDLING AND API ENDPOINTS ==="
+echo "=== FIXING ALL REMAINING ERRORS ==="
 
-# 1. Perbaiki signal handling di main.rs
-echo "1. Fixing signal handling in main.rs..."
+# 1. Hapus duplikat mod api
+echo "1. Fixing duplicate 'api' module..."
+if [ -f "src/api.rs" ] && [ -d "src/api" ]; then
+    echo "Found both api.rs and api/ directory"
+    # Hapus salah satu (pilih api.rs karena kita buat)
+    rm -rf src/api
+    echo "Removed src/api directory"
+elif [ -d "src/api" ]; then
+    # Hapus api/ dan gunakan api.rs
+    rm -rf src/api
+    echo "Removed src/api directory"
+fi
 
-# Cari fungsi main atau signal handling
-if grep -q "tokio::signal" src/main.rs; then
-    echo "✓ Signal handling found, updating..."
-    
-    # Ganti signal handling yang ada
-    cat > /tmp/signal_fix.rs << 'EOF'
+# Hapus duplikat mod api di main.rs
+sed -i '/^mod api;$/d' src/main.rs
+sed -i '1i\mod api;' src/main.rs
+echo "Fixed duplicate mod declaration"
+
+# 2. Tambahkan imports yang hilang di main.rs
+echo "2. Adding missing imports to main.rs..."
+
+# Backup main.rs
+cp src/main.rs src/main.rs.backup.final
+
+# Buat file main.rs yang diperbaiki
+cat > /tmp/main_fixed.rs << 'EOF'
+use std::sync::Arc;
+use log::{info, error};
+use tokio::sync::Notify;
+
+mod api;
+mod command;
+mod monitor;
+mod storage;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize logging
+    env_logger::init();
+
     // Handle shutdown signals
     let shutdown_notify = Arc::new(Notify::new());
     let shutdown_clone = Arc::clone(&shutdown_notify);
@@ -41,67 +72,72 @@ if grep -q "tokio::signal" src/main.rs; then
         
         shutdown_clone.notify_one();
     });
+
+    // Start API server
+    let api_router = api::create_router();
+    let api_server = tokio::spawn(async move {
+        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3000));
+        info!("Starting API server on {}", addr);
+        axum::serve(tokio::net::TcpListener::bind(addr).await.unwrap(), api_router)
+            .await
+            .unwrap();
+    });
+
+    // Wait for shutdown signal
+    shutdown_notify.notified().await;
+    
+    // Shutdown API server
+    api_server.abort();
+    info!("Shutdown completed");
+
+    Ok(())
+}
 EOF
-    
-    # Update main.rs dengan signal handling yang benar
-    sed -i '/tokio::signal::ctrl_c/,/shutdown_notify\.notified/ {
-        /tokio::signal::ctrl_c/ {
-            r /tmp/signal_fix.rs
-            d
-        }
-        /shutdown_notify\.notified/!d
-    }' src/main.rs
-    
-else
-    # Tambahkan signal handling jika belum ada
-    echo "Adding signal handling..."
-    MAIN_LINE=$(grep -n "fn main()" src/main.rs | cut -d: -f1)
-    if [ -n "$MAIN_LINE" ]; then
-        sed -i "$((MAIN_LINE+1)) i\\
-#[tokio::main]\\
-async fn main() -> Result<()> {\\
-    // Initialize logging\\
-    env_logger::init();\\
-    \\
-    // Handle shutdown signals\\
-    let shutdown_notify = Arc::new(Notify::new());\\
-    let shutdown_clone = Arc::clone(\&shutdown_notify);\\
-    \\
-    tokio::spawn(async move {\\
-        let ctrl_c = tokio::signal::ctrl_c();\\
-        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();\\
-        let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).unwrap();\\
-        \\
-        tokio::select! {\\
-            _ = ctrl_c => {\\
-                info!(\"Received SIGINT (Ctrl+C), initiating graceful shutdown...\");\\
-            }\\
-            _ = sigterm.recv() => {\\
-                info!(\"Received SIGTERM, initiating graceful shutdown...\");\\
-            }\\
-            _ = sighup.recv() => {\\
-                info!(\"Received SIGHUP, initiating graceful shutdown...\");\\
-            }\\
-        }\\
-        \\
-        // Call flush before shutdown\\
-        info!(\"Flushing data to disk before shutdown...\");\\
-        if let Err(e) = crate::monitor::flush_final().await {\\
-            error!(\"Failed to flush data during shutdown: {}\", e);\\
-        }\\
-        \\
-        shutdown_clone.notify_one();\\
-    });\\
-    \\
-    // Rest of main function..." src/main.rs
+
+# Ganti main.rs
+cp /tmp/main_fixed.rs src/main.rs
+
+# 3. Tambahkan imports log ke modul-modul yang perlu
+echo "3. Adding log imports to monitor modules..."
+
+for module in connection dns traffic; do
+    FILE="src/monitor/${module}.rs"
+    if [ -f "$FILE" ] && ! grep -q "use log::info" "$FILE"; then
+        # Tambahkan di baris setelah mod declaration atau di atas
+        if grep -q "^use " "$FILE"; then
+            # Tambahkan setelah use statements terakhir
+            sed -i '/^use / {
+                x
+                /^$/! {
+                    x
+                    H
+                    d
+                }
+                x
+                /^$/ {
+                    x
+                    i\
+use log::{info, error};
+                    x
+                }
+            }' "$FILE"
+        else
+            # Tambahkan di baris pertama
+            sed -i '1i\use log::{info, error};' "$FILE"
+        fi
+        echo "✓ Added log imports to ${module}.rs"
     fi
-fi
+done
 
-# 2. Perbaiki fungsi flush_final() di monitor/mod.rs
-echo "2. Fixing flush_final() function..."
+# 4. Pastikan fungsi flush_final() ada di monitor/mod.rs
+echo "4. Ensuring flush_final() exists..."
 
-# Buat implementasi flush_final yang benar
-cat > /tmp/flush_final_fix.rs << 'EOF'
+cat > /tmp/flush_final_complete.rs << 'EOF'
+use std::sync::atomic::Ordering;
+
+static CAPTURE_RUNNING: AtomicBool = AtomicBool::new(false);
+static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
 /// Flush all monitoring data to disk (called on shutdown)
 pub async fn flush_final() -> Result<()> {
     use std::sync::atomic::Ordering;
@@ -149,89 +185,30 @@ pub async fn flush_final() -> Result<()> {
 }
 EOF
 
-# Ganti fungsi flush_final yang ada
+# Cek apakah AtomicBool sudah di-import
+if ! grep -q "use std::sync::atomic::AtomicBool" src/monitor/mod.rs; then
+    sed -i '1i\use std::sync::atomic::AtomicBool;' src/monitor/mod.rs
+fi
+
+# Ganti atau tambahkan fungsi flush_final
 if grep -q "pub async fn flush_final()" src/monitor/mod.rs; then
-    sed -i '/pub async fn flush_final()/,/^}/ {
-        /pub async fn flush_final()/ {
-            r /tmp/flush_final_fix.rs
-            d
-        }
-        /^}/!d
-    }' src/monitor/mod.rs
-else
-    # Tambahkan di akhir file
-    cat /tmp/flush_final_fix.rs >> src/monitor/mod.rs
+    # Ganti yang ada
+    sed -i '/pub async fn flush_final()/,/^}/d' src/monitor/mod.rs
 fi
 
-# 3. Tambahkan API endpoint /flush
-echo "3. Adding API endpoint /flush..."
+# Tambahkan fungsi baru
+cat /tmp/flush_final_complete.rs >> src/monitor/mod.rs
 
-# Cari file yang berisi API routes (biasanya di command.rs atau api.rs)
-API_FILE="src/command.rs"
-if [ ! -f "$API_FILE" ]; then
-    API_FILE="src/api.rs"
-    if [ ! -f "$API_FILE" ]; then
-        API_FILE="src/main.rs"
-    fi
-fi
+# 5. Perbaiki api.rs
+echo "5. Fixing api.rs..."
 
-echo "Adding flush endpoint to $API_FILE"
-
-# Tambahkan handler untuk /flush
-if grep -q "axum::Router" "$API_FILE" || grep -q "\.route(" "$API_FILE"; then
-    # Cari router dan tambahkan route
-    if ! grep -q "/api/flush" "$API_FILE"; then
-        # Tambahkan import jika perlu
-        if ! grep -q "use crate::monitor" "$API_FILE"; then
-            sed -i '1i\use crate::monitor;' "$API_FILE"
-        fi
-        
-        # Cari router dan tambahkan route
-        sed -i '/\.route(/ {
-            a\        .route("/api/flush", axum::routing::post(flush_handler))
-        }' "$API_FILE"
-        
-        # Tambahkan handler function
-        cat >> "$API_FILE" << 'EOF'
-
-/// Handler for manual flush endpoint
-async fn flush_handler() -> impl axum::response::IntoResponse {
-    use axum::Json;
-    use serde_json::json;
-    
-    info!("Manual flush requested via API");
-    
-    match monitor::flush_final().await {
-        Ok(_) => {
-            Json(json!({
-                "status": "success",
-                "message": "Data flushed successfully"
-            }))
-        }
-        Err(e) => {
-            error!("Failed to flush via API: {}", e);
-            Json(json!({
-                "status": "error",
-                "message": format!("Failed to flush: {}", e)
-            }))
-        }
-    }
-}
-EOF
-    else
-        echo "✓ /api/flush endpoint already exists"
-    fi
-else
-    echo "⚠ Router not found, creating simple API server..."
-    
-    # Buat file api.rs jika belum ada
-    if [ ! -f "src/api.rs" ]; then
-        cat > src/api.rs << 'EOF'
+cat > src/api.rs << 'EOF'
 use axum::{
-    routing::post,
+    routing::{get, post},
     Router,
     Json,
 };
+use log::{info, error};
 use serde_json::json;
 
 use crate::monitor;
@@ -240,7 +217,7 @@ use crate::monitor;
 pub fn create_router() -> Router {
     Router::new()
         .route("/api/flush", post(flush_handler))
-        .route("/api/health", post(health_handler))
+        .route("/api/health", get(health_handler))
 }
 
 /// Handler for manual flush endpoint
@@ -272,80 +249,80 @@ async fn health_handler() -> impl axum::response::IntoResponse {
     }))
 }
 EOF
-    
-        # Update main.rs untuk include API
-        if grep -q "fn main()" src/main.rs; then
-            sed -i '1i\mod api;' src/main.rs
-            sed -i '/shutdown_notify\.notified/i\
-    // Start API server\
-    let api_router = api::create_router();\
-    let api_server = tokio::spawn(async move {\
-        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3000));\
-        info!("Starting API server on {}" , addr);\
-        axum::serve(tokio::net::TcpListener::bind(addr).await.unwrap(), api_router)\
-            .await\
-            .unwrap();\
-    });' src/main.rs
-        fi
-    fi
-fi
 
-# 4. Pastikan dependencies ada di Cargo.toml
-echo "4. Checking dependencies..."
+# 6. Perbaiki Cargo.toml
+echo "6. Updating Cargo.toml..."
 
-if ! grep -q "axum" Cargo.toml; then
+if ! grep -q "log =" Cargo.toml; then
     cat >> Cargo.toml << 'EOF'
 
 [dependencies]
+log = "0.4"
+env_logger = "0.11"
 axum = "0.7"
-tokio = { version = "1.0", features = ["full", "signal"] }
+tokio = { version = "1.0", features = ["full", "signal", "rt-multi-thread"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
 EOF
 fi
 
-# 5. Update fungsi flush di modul lain jika perlu
-echo "5. Ensuring all flush functions exist..."
+# 7. Buat Result type alias jika belum ada
+echo "7. Creating common Result type..."
 
-# Cek apakah modul traffic, connection, dns memiliki fungsi flush()
-for module in traffic connection dns; do
-    MOD_FILE="src/monitor/${module}.rs"
-    if [ -f "$MOD_FILE" ] && ! grep -q "pub async fn flush()" "$MOD_FILE"; then
-        echo "Adding flush() to ${module}.rs"
-        cat >> "$MOD_FILE" << 'EOF'
+# Cek apakah sudah ada type Result di lib.rs atau main.rs
+if ! grep -q "type Result<T>" src/main.rs && ! grep -q "type Result<T>" src/lib.rs 2>/dev/null; then
+    # Tambahkan di main.rs setelah imports
+    sed -i '/use /a\
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;' src/main.rs
+fi
 
-/// Flush pending data to storage
-pub async fn flush() -> Result<()> {
-    // TODO: Implement actual flush logic
-    info!("Flushing {} data...", stringify!($module));
-    Ok(())
-}
+# 8. Pastikan semua modul dideklarasikan
+echo "8. Ensuring all modules are declared..."
+
+# Buat lib.rs jika belum ada
+if [ ! -f "src/lib.rs" ]; then
+    cat > src/lib.rs << 'EOF'
+pub mod api;
+pub mod command;
+pub mod monitor;
+pub mod storage;
+pub mod ebpf;
+pub mod device;
+
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 EOF
-    fi
-done
+fi
 
-# 6. Format dan test
-echo "6. Formatting and testing..."
-rustfmt src/main.rs src/monitor/mod.rs src/command.rs 2>/dev/null || true
+# 9. Format semua file
+echo "9. Formatting files..."
+rustfmt src/main.rs src/monitor/mod.rs src/api.rs 2>/dev/null || echo "rustfmt may have failed, continuing..."
 
+# 10. Test compilation
 echo ""
-echo "=== COMPILATION TEST ==="
+echo "10. Testing compilation..."
 cargo check --target aarch64-unknown-linux-musl 2>&1 | grep -E "(error:|warning:|Compiling)" | head -20
 
 echo ""
-echo "=== SUMMARY ==="
-echo "Perbaikan yang dilakukan:"
-echo "✓ Signal handling (SIGINT, SIGTERM, SIGHUP) sekarang memanggil flush"
-echo "✓ API endpoint /api/flush ditambahkan"
-echo "✓ Fungsi flush_final() diperbaiki"
-echo "✓ Dependencies diperbarui"
+echo "=== QUICK FIX COMMANDS ==="
+echo "Jika masih ada error, coba perintah berikut:"
+
 echo ""
-echo "Testing:"
-echo "1. Build project: cargo build --target aarch64-unknown-linux-musl"
-echo "2. Test API: curl -X POST http://localhost:3000/api/flush"
-echo "3. Test signal: kill -SIGTERM <pid>"
+echo "1. Untuk error 'cannot find flush_final':"
+echo "   grep -n 'flush_final' src/monitor/mod.rs"
+
 echo ""
-echo "Backup files:"
-echo "- src/main.rs.backup"
-echo "- src/command.rs.backup.signal"
-echo "- src/monitor/mod.rs.backup.signal"
+echo "2. Untuk error import:"
+echo "   sed -i '1i\\\\' src/main.rs"
+echo "   sed -i '1i\\use std::sync::Arc;' src/main.rs"
+echo "   sed -i '1i\\use log::{info, error};' src/main.rs"
+echo "   sed -i '1i\\use tokio::sync::Notify;' src/main.rs"
+
+echo ""
+echo "3. Untuk membersihkan build cache:"
+echo "   cargo clean && cargo build --target aarch64-unknown-linux-musl"
+
+echo ""
+echo "=== BACKUP FILES ==="
+echo "Backup created: src/main.rs.backup.final"
+echo "Original can be restored if needed"

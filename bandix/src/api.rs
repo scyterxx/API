@@ -1,8 +1,9 @@
 use axum::{
-    routing::post,
+    routing::{get, post},
     Router,
     Json,
 };
+use log::{info, error};
 use serde_json::json;
 
 use crate::monitor;
@@ -11,7 +12,7 @@ use crate::monitor;
 pub fn create_router() -> Router {
     Router::new()
         .route("/api/flush", post(flush_handler))
-        .route("/api/health", post(health_handler))
+        .route("/api/health", get(health_handler))
 }
 
 /// Handler for manual flush endpoint
