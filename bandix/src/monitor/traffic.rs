@@ -10,13 +10,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex as TokioMutex;
 
 struct RawTrafficData {
-    pub lan_tx_bytes: u64, // lan 发送字节数
-    pub lan_rx_bytes: u64, // lan 接收字节数
-    pub wan_tx_bytes: u64, // wan 发送字节数
-    pub wan_rx_bytes: u64, // wan 接收字节数
+    pub lan_tx_bytes: u64, // lan 
+    pub lan_rx_bytes: u64, // lan 
+    pub wan_tx_bytes: u64, // wan 
+    pub wan_rx_bytes: u64, // wan 
 }
 
-/// 流量监控模块的具体实现
 pub struct TrafficMonitor {
     http: reqwest::Client,
     export_in_flight: Arc<AtomicBool>,
@@ -261,7 +260,7 @@ impl TrafficMonitor {
         Ok(())
     }
 
-    /// 处理所有设备的流量更新，包括有流量和无流量的设备
+
     fn process_device_traffic_updates(
         &self,
         ctx: &mut TrafficModuleContext,
@@ -269,12 +268,11 @@ impl TrafficMonitor {
         all_device_macs: &std::collections::HashSet<[u8; 6]>,
         scheduled_limits: &[crate::storage::traffic::ScheduledRateLimit],
     ) -> Result<(), anyhow::Error> {
-        // 先处理有流量的设备
+        
         for (mac, raw_traffic) in raw_device_traffic.iter() {
             self.process_active_device_traffic(ctx, mac, raw_traffic, scheduled_limits)?;
         }
 
-        // 处理没有流量的设备（离线设备，即从 ring 文件恢复的设备）
         for mac in all_device_macs.iter() {
             if !raw_device_traffic.contains_key(mac) {
                 self.process_inactive_device_traffic(ctx, mac, scheduled_limits)?;
@@ -284,7 +282,6 @@ impl TrafficMonitor {
         Ok(())
     }
 
-    /// 处理有流量设备的统计更新
     fn process_active_device_traffic(
         &self,
         ctx: &mut TrafficModuleContext,
@@ -292,7 +289,7 @@ impl TrafficMonitor {
         raw_traffic: &RawTrafficData,
         scheduled_limits: &[crate::storage::traffic::ScheduledRateLimit],
     ) -> Result<(), anyhow::Error> {
-        // 计算增量
+        
         let last_ebpf = ctx.last_ebpf_traffic.lock().unwrap();
         let last_values = last_ebpf.get(mac).copied().unwrap_or([0u64; 4]);
         drop(last_ebpf);
@@ -307,24 +304,20 @@ impl TrafficMonitor {
             .unwrap_or(Duration::from_secs(0))
             .as_millis() as u64;
 
-        // 更新设备流量统计
         if let Err(e) = ctx.device_manager.update_device_traffic_stats(mac, |stats| {
-            // 从预定规则计算当前有效速率限制
+            
             if let Some(limits) = crate::storage::traffic::calculate_current_rate_limit(scheduled_limits, mac) {
                 stats.wan_rx_rate_limit = limits[0];
                 stats.wan_tx_rate_limit = limits[1];
             }
 
-            // 累加增量到统计值
             stats.lan_rx_bytes = stats.lan_rx_bytes.saturating_add(lan_rx_delta);
             stats.lan_tx_bytes = stats.lan_tx_bytes.saturating_add(lan_tx_delta);
             stats.wan_rx_bytes = stats.wan_rx_bytes.saturating_add(wan_rx_delta);
             stats.wan_tx_bytes = stats.wan_tx_bytes.saturating_add(wan_tx_delta);
 
-            // 计算速率和活动时间
             self.update_device_rates_and_activity(stats, now);
 
-            // 将当前值保存为下次计算的基础
             stats.lan_last_rx_bytes = stats.lan_rx_bytes;
             stats.lan_last_tx_bytes = stats.lan_tx_bytes;
             stats.wan_last_rx_bytes = stats.wan_rx_bytes;
@@ -334,7 +327,6 @@ impl TrafficMonitor {
             log::warn!("Failed to update device stats for {:?}: {}", mac, e);
         }
 
-        // 保存当前 eBPF 值用于下次计算
         let mut last_ebpf = ctx.last_ebpf_traffic.lock().unwrap();
         last_ebpf.insert(
             *mac,
@@ -554,6 +546,8 @@ impl TrafficMonitor {
             export_in_flight.store(false, Ordering::Relaxed);
         });
     }
+
+}
 
 }
 
