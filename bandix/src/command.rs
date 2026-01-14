@@ -626,10 +626,7 @@ async fn run_service(options: &Options) -> Result<(), anyhow::Error> {
 
 // Di dalam src/command.rs sekitar baris 630
 let axum_router = axum::Router::new();
-let final_router = crate::api::extend_router_with_flush(axum_router);
-
-// SEKARANG INI AKAN BERHASIL karena new() sudah menerima argumen
-let api_router = crate::api::ApiRouter::new(final_router);
+let api_router = crate::api::ApiRouter::new(axum_router);
 
 let options_for_web = options.clone();
 let shutdown_notify_for_web = shutdown_notify.clone();

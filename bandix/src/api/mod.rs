@@ -116,12 +116,14 @@ impl ApiHandler {
 #[derive(Clone)]
 pub struct ApiRouter {
     handlers: HashMap<String, ApiHandler>,
+    router: axum::Router,
 }
 
 impl ApiRouter {
     pub fn new(router: axum::Router) -> Self {
         Self {
-            router, // atau apapun nama field internalnya di sana
+            handlers: HashMap::new(),  // Inisialisasi handlers
+            router,  // Sekarang field ini ada
         }
     }
 
@@ -234,12 +236,4 @@ pub async fn flush_handler() -> impl IntoResponse {
         data: None,
         message: Some("Flushed".into()),
     })
-}
-
-
-// --- added flush route ---
-use axum::routing::post;
-
-pub fn extend_router_with_flush(router: axum::Router) -> axum::Router {
-    router.route("/api/flush", post(flush_handler))
 }
