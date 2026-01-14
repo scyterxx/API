@@ -736,3 +736,9 @@ Commands::Flush => {
    // kosong / placeholder
    crate::monitor::flush_all().await;
  }
+
+Commands::Flush => {
+            log::info!("Executing manual flush...");
+            crate::monitor::flush_all().await;
+            return Ok(());
+        } // <--- Pastikan ada kurung kurawal penutup

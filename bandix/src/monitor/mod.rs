@@ -369,7 +369,7 @@ impl MonitorManager {
 
         MonitorManager {
             modules,
-            api_router: ApiRouter::new(axum::Router::new()),
+            ApiRouter::new()
         }
     }
 

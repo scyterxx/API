@@ -92,6 +92,7 @@ impl ApiHandler {
             ApiHandler::Traffic(_) => "traffic",
             ApiHandler::Dns(_) => "dns",
             ApiHandler::Connection(_) => "connection",
+            ApiHandler::System => "system",
         }
     }
 
@@ -100,6 +101,7 @@ impl ApiHandler {
             ApiHandler::Traffic(handler) => handler.supported_routes(),
             ApiHandler::Dns(handler) => handler.supported_routes(),
             ApiHandler::Connection(handler) => handler.supported_routes(),
+            ApiHandler::System => vec!["/api/flush"],
         }
     }
 
@@ -108,6 +110,10 @@ impl ApiHandler {
             ApiHandler::Traffic(handler) => handler.handle_request(request).await,
             ApiHandler::Dns(handler) => handler.handle_request(request).await,
             ApiHandler::Connection(handler) => handler.handle_request(request).await,
+            ApiHandler::System => {
+                // Biarkan kosong karena rute ini sudah dipotong di route_request manual kita
+                Ok(HttpResponse::ok("System handler".into()))
+            }
         }
     }
 }
@@ -120,6 +126,17 @@ pub struct ApiRouter {
 
 // Lokasi: bandix/src/api/mod.rs (sekitar baris 126)
 impl ApiRouter {
+pub fn new() -> Self {
+        Self {
+            handlers: HashMap::new(),
+        }
+    }
+
+    // WAJIB ADA: Fungsi pendaftaran handler (Publik)
+    pub fn register_handler(&mut self, handler: ApiHandler) {
+        self.handlers.insert(handler.module_name().to_string(), handler);
+    }
+    
     pub async fn route_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
         // Cek rute flush secara manual
         if request.path == "/api/flush" && request.method == "POST" {
