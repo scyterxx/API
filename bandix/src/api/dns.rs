@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub fn register(router: &mut crate::api::ApiRouter) {
+    // log::debug!("DNS API routes registered");
+}
+
 /// DNS 查询信息，用于 API 响应
 #[derive(Serialize, Deserialize)]
 pub struct DnsQueryInfo {

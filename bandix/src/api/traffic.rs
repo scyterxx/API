@@ -10,6 +10,10 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+pub fn register(router: &mut crate::api::ApiRouter) {
+    // Fungsi ini nanti akan digunakan untuk mendaftarkan rute traffic
+    // log::debug!("Traffic API routes registered");
+}
 /// 设备信息，用于 API 响应
 #[derive(Serialize, Deserialize)]
 pub struct DeviceInfo {

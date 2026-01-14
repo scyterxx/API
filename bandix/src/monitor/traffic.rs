@@ -79,6 +79,7 @@ impl TrafficMonitor {
                             log::error!("Failed to flush long-term rings during shutdown: {}", e);
                         }
                     }
+                    flush().await;
                     break;
                 }
             }
@@ -553,12 +554,15 @@ impl TrafficMonitor {
         });
     }
 
-    // events are emitted by DeviceManager background refresh task (neighbor-table based)
-}
 
 
-/// Flush traffic module data
 pub async fn flush() {
-    log::info!("Flushing traffic module data");
-    // TODO: clear maps / storage
+    log::info!("Flushing traffic module data and executing system sync");
+    
+    // 1. Jalankan perintah 'sync' sistem untuk memaksa kernel menulis seluruh buffer ke disk
+    // Sangat penting untuk OpenWrt agar partisi /overlay tidak korup
+    match std::process::Command::new("sync").status() {
+        Ok(status) if status.success() => log::info!("System hardware sync completed successfully."),
+        _ => log::warn!("System sync command failed to execute."),
+    }
 }

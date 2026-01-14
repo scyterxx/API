@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+
+pub fn register(router: &mut crate::api::ApiRouter) {
+    //log::debug!("Connection API routes registered");
+}
 /// 连接 statistics API handler
 #[derive(Clone)]
 pub struct ConnectionApiHandler {

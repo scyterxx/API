@@ -742,18 +742,17 @@ pub async fn handle_command(args: Options, command: Commands) -> Result<(), anyh
 }
 
 pub async fn flush_all() {
-    log::info!("Starting flush sequence...");
+    log::info!("Memulai proses penyimpanan data (Flush)...");
 
-    log::info!("Flushing traffic statistics...");
+    // 1. Flush data per modul
     traffic::flush().await;
-
-    
     connection::flush().await;
-
     dns::flush().await;
 
-    // Tambahkan sync hardware agar data benar-benar tertulis di OpenWrt flash
-    let _ = std::process::Command::new("sync").status();
-    
-    log::info!("Flush complete. Hardware sync executed.");
+    // 2. Eksekusi Hardware Sync (Mirip mengetik 'sync' di terminal)
+    // Ini memaksa kernel Linux menulis semua dirty pages ke disk/flash
+    match std::process::Command::new("sync").status() {
+        Ok(_) => log::info!("Hardware storage sync berhasil dijalankan."),
+        Err(e) => log::warn!("Gagal menjalankan hardware sync: {}", e),
+    }
 }

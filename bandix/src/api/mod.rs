@@ -1,11 +1,13 @@
 pub mod connection;
 pub mod dns;
 pub mod traffic;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::net::TcpStream;
+use log::{error, debug};
 
-/// API 响应结构
+/// API standar untuk response JSON
 #[derive(Serialize, Deserialize)]
 pub struct ApiResponse<T> {
     pub status: String,
@@ -31,7 +33,7 @@ impl<T> ApiResponse<T> {
     }
 }
 
-/// HTTP 请求信息
+/// Struktur HTTP Request sederhana untuk TcpListener manual
 #[derive(Debug, Clone)]
 pub struct HttpRequest {
     pub method: String,
@@ -40,7 +42,7 @@ pub struct HttpRequest {
     pub body: Option<String>,
 }
 
-/// HTTP 响应
+/// Struktur HTTP Response
 #[derive(Debug)]
 pub struct HttpResponse {
     pub status: u16,
@@ -58,147 +60,95 @@ impl HttpResponse {
     }
 
     pub fn error(status: u16, message: String) -> Self {
-        let error_response = ApiResponse::<()>::error(message);
-        let body = serde_json::to_string(&error_response)
-            .unwrap_or_else(|_| r#"{"status":"error","message":"JSON serialization failed"}"#.to_string());
+        let err = ApiResponse::<()>::error(message);
         Self {
             status,
             content_type: "application/json".to_string(),
-            body,
+            body: serde_json::to_string(&err).unwrap_or_default(),
         }
     }
 
     pub fn not_found() -> Self {
-        Self {
-            status: 404,
-            content_type: "text/plain".to_string(),
-            body: "Not Found".to_string(),
-        }
+        Self::error(404, "Not Found".to_string())
     }
 }
 
-/// 不同模块的 API 处理程序枚举
-#[derive(Clone)]
-pub enum ApiHandler {
-    Traffic(crate::api::traffic::TrafficApiHandler),
-    Dns(crate::api::dns::DnsApiHandler),
-    Connection(crate::api::connection::ConnectionApiHandler),
-    System, // <--- Pastikan ini ada
-}
-
-impl ApiHandler {
-    pub fn module_name(&self) -> &'static str {
-        match self {
-            ApiHandler::Traffic(_) => "traffic",
-            ApiHandler::Dns(_) => "dns",
-            ApiHandler::Connection(_) => "connection",
-            ApiHandler::System => "system",
-        }
-    }
-
-    pub fn supported_routes(&self) -> Vec<&'static str> {
-        match self {
-            ApiHandler::Traffic(handler) => handler.supported_routes(),
-            ApiHandler::Dns(handler) => handler.supported_routes(),
-            ApiHandler::Connection(handler) => handler.supported_routes(),
-            ApiHandler::System => vec!["/api/flush"],
-        }
-    }
-
-    pub async fn handle_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
-        match self {
-            ApiHandler::Traffic(handler) => handler.handle_request(request).await,
-            ApiHandler::Dns(handler) => handler.handle_request(request).await,
-            ApiHandler::Connection(handler) => handler.handle_request(request).await,
-            ApiHandler::System => {
-                // Biarkan kosong karena rute ini sudah dipotong di route_request manual kita
-                Ok(HttpResponse::ok("System handler".into()))
-            }
-        }
-    }
-}
-
-/// API 路由器，用于管理模块 API 处理程序
+/// Router untuk menangani permintaan API secara manual
 #[derive(Clone)]
 pub struct ApiRouter {
-    handlers: HashMap<String, ApiHandler>,
+    // Di sini Anda bisa menambahkan state jika diperlukan (misal Arc<Context>)
 }
 
-// Lokasi: bandix/src/api/mod.rs (sekitar baris 126)
 impl ApiRouter {
-    // Pastikan ada kata 'pub' dan tidak ada parameter di dalam ()
     pub fn new() -> Self {
-        Self {
-            handlers: HashMap::new(),
-        }
+        Self {}
     }
 
-    // Pastikan ini juga publik agar bisa dipakai di monitor/mod.rs
-    pub fn register_handler(&mut self, handler: ApiHandler) {
-        self.handlers.insert(handler.module_name().to_string(), handler);
-    }
-    
-    pub async fn route_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
-        // Cek rute flush secara manual
-        if request.path == "/api/flush" && request.method == "POST" {
-            log::info!("HTTP Request: Triggering manual data flush...");
-            crate::command::flush_all().await; // Eksekusi penyimpanan data ke disk
-            return Ok(HttpResponse::ok(r#"{"status":"success","message":"Data flushed to disk"}"#.to_string()));
-        }
+    /// Fungsi utama untuk routing URL ke Handler
+    pub async fn route_request(&self, req: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
+        debug!("Routing request: {} {}", req.method, req.path);
 
-        // Jalankan logika router yang sudah ada untuk modul lain
-        for handler in self.handlers.values() {
-            for route in handler.supported_routes() {
-                if request.path.starts_with(route) {
-                    return handler.handle_request(request).await;
-                }
-            }
-        }
+        match (req.method.as_str(), req.path.as_str()) {
+            // Route: Flush Data
+            ("POST", "/api/flush") | ("GET", "/api/flush") => {
+                crate::command::flush_all().await;
+                Ok(HttpResponse::ok(r#"{"status":"success","message":"Flush completed"}"#.to_string()))
+            },
 
-        Ok(HttpResponse::not_found())
+            // Route: Traffic Monitoring
+            ("GET", "/api/traffic/stats") => {
+                // Implementasi di traffic.rs
+                traffic::handle_get_stats().await
+            },
+
+            // Route: Connection Traffic (Perbaikan 404)
+            ("GET", "/api/traffic/connections") => {
+                connection::handle_get_connections().await
+            },
+
+            // Route: DNS Logs
+            ("GET", "/api/dns/logs") => {
+                dns::handle_get_logs().await
+            },
+
+            // Default 404
+            _ => Ok(HttpResponse::not_found()),
+        }
     }
 }
 
-/// 从原始字节解析 HTTP 请求
-pub fn parse_http_request(request_bytes: &[u8]) -> Result<HttpRequest, anyhow::Error> {
-    let request_str = String::from_utf8_lossy(request_bytes);
+/// Fungsi pembantu untuk parsing HTTP Raw string menjadi struct HttpRequest
+pub fn parse_http_request(request_str: &str) -> Result<HttpRequest, anyhow::Error> {
     let lines: Vec<&str> = request_str.lines().collect();
-
     if lines.is_empty() {
         return Err(anyhow::anyhow!("Empty request"));
     }
 
-    // 解析request line
-    let parts: Vec<&str> = lines[0].split_whitespace().collect();
-    if parts.len() < 2 {
+    let first_line: Vec<&str> = lines[0].split_whitespace().collect();
+    if first_line.len() < 2 {
         return Err(anyhow::anyhow!("Invalid request line"));
     }
 
-    let method = parts[0].to_string();
-    let path_with_query = parts[1];
+    let method = first_line[0].to_string();
+    let full_path = first_line[1].to_string();
 
-    // 分割path and query parameters
-    let (path, query_str) = if let Some(pos) = path_with_query.find('?') {
-        (path_with_query[..pos].to_string(), Some(&path_with_query[pos + 1..]))
-    } else {
-        (path_with_query.to_string(), None)
-    };
-
-    // 解析query parameters
+    // Pisahkan path dan query params
+    let parts: Vec<&str> = full_path.splitn(2, '?').collect();
+    let path = parts[0].to_string();
     let mut query_params = HashMap::new();
-    if let Some(query) = query_str {
-        for param in query.split('&') {
-            if let Some(eq_pos) = param.find('=') {
-                let key = param[..eq_pos].to_string();
-                let value = param[eq_pos + 1..].to_string();
-                query_params.insert(key, value);
+
+    if parts.len() > 1 {
+        for pair in parts[1].split('&') {
+            let kv: Vec<&str> = pair.splitn(2, '=').collect();
+            if kv.len() == 2 {
+                query_params.insert(kv[0].to_string(), kv[1].to_string());
             }
         }
     }
 
-    // 解析body (if present)
-    let body = if let Some(body_start) = request_str.find("\r\n\r\n") {
-        Some(request_str[body_start + 4..].to_string())
+    let body = if let Some(pos) = request_str.find("\r\n\r\n") {
+        let b = &request_str[pos + 4..];
+        if !b.is_empty() { Some(b.to_string()) } else { None }
     } else {
         None
     };
@@ -211,20 +161,25 @@ pub fn parse_http_request(request_bytes: &[u8]) -> Result<HttpRequest, anyhow::E
     })
 }
 
-/// 向客户端发送 HTTP 响应
+/// Mengirimkan raw response kembali ke TcpStream
 pub async fn send_http_response(stream: &mut TcpStream, response: &HttpResponse) -> Result<(), anyhow::Error> {
     use tokio::io::AsyncWriteExt;
 
     let status_text = match response.status {
         200 => "OK",
-        400 => "BAD REQUEST",
         404 => "Not Found",
-        500 => "INTERNAL SERVER ERROR",
-        _ => "UNKNOWN",
+        500 => "Internal Server Error",
+        _ => "Unknown",
     };
 
-    let http_response = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}",
+    let raw = format!(
+        "HTTP/1.1 {} {}\r\n\
+         Content-Type: {}\r\n\
+         Content-Length: {}\r\n\
+         Access-Control-Allow-Origin: *\r\n\
+         Connection: close\r\n\
+         \r\n\
+         {}",
         response.status,
         status_text,
         response.content_type,
@@ -232,25 +187,12 @@ pub async fn send_http_response(stream: &mut TcpStream, response: &HttpResponse)
         response.body
     );
 
-    stream.write_all(http_response.as_bytes()).await?;
+    stream.write_all(raw.as_bytes()).await?;
+    stream.flush().await?;
     Ok(())
 }
 
-
-use crate::command::flush_all;
-use axum::{Json, response::IntoResponse};
-
-pub async fn flush_handler() -> impl IntoResponse {
-    flush_all().await;
-    Json(ApiResponse::<()>{
-        status: "success".into(),
-        data: None,
-        message: Some("Flushed".into()),
-    })
-}
-
-// Lokasi: bandix/src/api/mod.rs (paling bawah)
-pub fn register_flush(api: &mut ApiRouter) {
-    // Kita mendaftarkan handler "System" agar router tahu ada rute sistem
-    api.handlers.insert("system".into(), ApiHandler::System);
+// Fungsi registrasi kosong agar tidak error saat dipanggil dari monitor/mod.rs
+pub fn register_flush(_router: &mut ApiRouter) {
+    debug!("Flush API registered");
 }
