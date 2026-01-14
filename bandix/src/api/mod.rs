@@ -1,7 +1,6 @@
 pub mod connection;
 pub mod dns;
 pub mod traffic;
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::net::TcpStream;
@@ -84,6 +83,7 @@ pub enum ApiHandler {
     Traffic(crate::api::traffic::TrafficApiHandler),
     Dns(crate::api::dns::DnsApiHandler),
     Connection(crate::api::connection::ConnectionApiHandler),
+    System,
 }
 
 impl ApiHandler {
@@ -116,25 +116,19 @@ impl ApiHandler {
 #[derive(Clone)]
 pub struct ApiRouter {
     handlers: HashMap<String, ApiHandler>,
-    router: axum::Router,
 }
 
+// Lokasi: bandix/src/api/mod.rs (sekitar baris 126)
 impl ApiRouter {
-    pub fn new(router: axum::Router) -> Self {
-        Self {
-            handlers: HashMap::new(),  // Inisialisasi handlers
-            router,  // Sekarang field ini ada
-        }
-    }
-
-    /// Register an API handler for a module
-    pub fn register_handler(&mut self, handler: ApiHandler) {
-        self.handlers.insert(handler.module_name().to_string(), handler);
-    }
-
-    /// Route a request to the appropriate handler
     pub async fn route_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
-        // Try to find a handler that supports this route
+        // Cek rute flush secara manual
+        if request.path == "/api/flush" && request.method == "POST" {
+            log::info!("HTTP Request: Triggering manual data flush...");
+            crate::command::flush_all().await; // Eksekusi penyimpanan data ke disk
+            return Ok(HttpResponse::ok(r#"{"status":"success","message":"Data flushed to disk"}"#.to_string()));
+        }
+
+        // Jalankan logika router yang sudah ada untuk modul lain
         for handler in self.handlers.values() {
             for route in handler.supported_routes() {
                 if request.path.starts_with(route) {
@@ -143,7 +137,6 @@ impl ApiRouter {
             }
         }
 
-        // No handler found
         Ok(HttpResponse::not_found())
     }
 }
@@ -236,4 +229,10 @@ pub async fn flush_handler() -> impl IntoResponse {
         data: None,
         message: Some("Flushed".into()),
     })
+}
+
+// Lokasi: bandix/src/api/mod.rs (paling bawah)
+pub fn register_flush(api: &mut ApiRouter) {
+    // Kita mendaftarkan handler "System" agar router tahu ada rute sistem
+    api.handlers.insert("system".into(), ApiHandler::System);
 }

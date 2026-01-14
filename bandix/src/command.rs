@@ -625,17 +625,23 @@ async fn run_service(options: &Options) -> Result<(), anyhow::Error> {
     monitor_manager.init_modules(&module_contexts).await?;
 
 // Di dalam src/command.rs sekitar baris 630
-let axum_router = axum::Router::new();
-let api_router = crate::api::ApiRouter::new(axum_router); // Sudah benar dengan parameter
+// 1. Gunakan ApiRouter kustom Anda (sesuai baris 117 di mod.rs)
+    let mut api_router = crate::api::ApiRouter::new();
+crate::api::register_flush(&mut api_router); // Pendaftaran rute flush
 
-let options_for_web = options.clone();
-let shutdown_notify_for_web = shutdown_notify.clone();
+    // 2. Registrasi handler yang ada (Traffic, DNS, Connection)
+    // Contoh untuk traffic:
+    // api_router.register_handler(crate::api::ApiHandler::Traffic(traffic_handler));
 
-let web_task = tokio::spawn(async move {
-    if let Err(e) = web::start_server(options_for_web, api_router, shutdown_notify_for_web).await {
-        log::error!("Web server error: {}", e);
-    }
-});
+    let options_for_web = options.clone();
+    let shutdown_notify_for_web = shutdown_notify.clone();
+
+    // 3. Jalankan server web TcpListener manual
+    let web_task = tokio::spawn(async move {
+        if let Err(e) = crate::web::start_server(options_for_web, api_router, shutdown_notify_for_web).await {
+            log::error!("Web server error: {}", e);
+        }
+    });
     // 启动主机名刷新任务
     let hostname_refresh_task =
         start_hostname_refresh_task(Arc::clone(&shared_hostname_bindings), options.clone(), shutdown_notify.clone());
@@ -725,3 +731,8 @@ pub async fn flush_all() {
 
     log::info!("Shutdown complete");
 }
+
+Commands::Flush => {
+   // kosong / placeholder
+   crate::monitor::flush_all().await;
+ }

@@ -427,20 +427,16 @@ pub async fn persist_all() {
 
 /// 2. Fungsi Global untuk sinkronisasi total sampai ke hardware fisik
 pub async fn flush_all() {
-    // Gunakan static global yang sudah didefinisikan di atas
     if FLUSH_IN_PROGRESS.swap(true, Ordering::SeqCst) {
-        log::warn!("Flush already in progress, skipping...");
         return;
     }
 
-    // A. Proses penulisan data asinkron (Memory -> Disk Cache)
-    persist_all().await;
+    connection::flush().await;
+    dns::flush().await;
+    traffic::flush().await;
 
-    // B. Paksa Hardware menulis data (Disk Cache -> Physical Disk)
-    // sync_barrier() adalah blocking syscall (syncfs/sync)
+    persist_all().await;
     crate::storage::sync_barrier();
 
-    // Reset status agar bisa dipanggil kembali nanti
     FLUSH_IN_PROGRESS.store(false, Ordering::SeqCst);
-    log::info!("Data successfully flushed and hardware sync completed.");
 }
