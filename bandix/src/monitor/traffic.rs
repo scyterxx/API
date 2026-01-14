@@ -128,7 +128,7 @@ impl TrafficMonitor {
                 .await;
         }
     }
-}
+
 
 #[derive(Serialize, Clone)]
 struct TrafficExportDevice {
