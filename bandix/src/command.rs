@@ -299,6 +299,7 @@ fn validate_arguments(opt: &Options) -> Result<(), anyhow::Error> {
 
 // 初始化共享的 eBPF 程序（被流量和 DNS 模块共同使用）
 async fn init_shared_ebpf(options: &Options) -> Result<aya::Ebpf, anyhow::Error> {
+use crate::ebpf::shared::load_shared;
     load_shared(options.iface().to_string()).await
 }
 
@@ -339,6 +340,7 @@ async fn create_module_contexts(
     options: &Options,
     subnet_info: &SubnetInfo,
     shared_hostname_bindings: &Arc<Mutex<std::collections::HashMap<[u8; 6], String>>>,
+use crate::device::DeviceManager;
     device_manager: Arc<DeviceManager>,
 ) -> Result<Vec<ModuleContext>, anyhow::Error> {
     let mut module_contexts = Vec::new();
