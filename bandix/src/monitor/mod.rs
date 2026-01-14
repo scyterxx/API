@@ -449,12 +449,19 @@ pub async fn flush_final() {
         return;
     }
 
+    // 1️⃣ Stop semua ingest
     stop_capture();
 
+    // 2️⃣ Flush semua buffer memory
     connection::flush().await;
     dns::flush().await;
     traffic::flush().await;
 
-    
+    // 3️⃣ Persist ke disk
+    persist_all().await;
 
+    // 4️⃣ Durability barrier
     if let Err(e) = storage::sync_barrier() {
+        log::error!("sync_barrier failed: {:?}", e);
+    }
+}
