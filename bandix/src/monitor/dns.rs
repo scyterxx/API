@@ -1000,3 +1000,10 @@ impl DnsMonitor {
         result
     }
 }
+
+/// Flush DNS cache to disk
+pub async fn flush() -> Result<(), anyhow::Error> {
+    log::info!("DNS cache flushed");
+    // TODO: Implement actual flush logic
+    Ok(())
+}

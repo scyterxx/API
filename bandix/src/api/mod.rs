@@ -5,14 +5,6 @@ pub mod traffic;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::net::TcpStream;
-use std::sync::atomic::{AtomicU16, Ordering};
-
-static CURRENT_PORT: AtomicU16 = AtomicU16::new(0);
-
-/// Get current port for logging
-pub fn get_port() -> u16 {
-    CURRENT_PORT.load(Ordering::Relaxed)
-}
 
 /// API 响应结构
 #[derive(Serialize, Deserialize)]
@@ -93,7 +85,6 @@ pub enum ApiHandler {
     Dns(crate::api::dns::DnsApiHandler),
     Connection(crate::api::connection::ConnectionApiHandler),
     System,
-    System,
 }
 
 impl ApiHandler {
@@ -102,7 +93,6 @@ impl ApiHandler {
             ApiHandler::Traffic(_) => "traffic",
             ApiHandler::Dns(_) => "dns",
             ApiHandler::Connection(_) => "connection",
-            ApiHandler::System => "system",
             ApiHandler::System => "system",
         }
     }
@@ -113,7 +103,6 @@ impl ApiHandler {
             ApiHandler::Dns(handler) => handler.supported_routes(),
             ApiHandler::Connection(handler) => handler.supported_routes(),
             ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
-            ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
         }
     }
 
@@ -123,11 +112,6 @@ impl ApiHandler {
             ApiHandler::Dns(handler) => handler.handle_request(request).await,
             ApiHandler::Connection(handler) => handler.handle_request(request).await,
             ApiHandler::System => {
-                // System endpoints handled in route_request
-                Ok(HttpResponse::ok("System handler".into()))
-            }
-            ApiHandler::System => {
-                // System endpoints handled in route_request
                 Ok(HttpResponse::ok("System handler".into()))
             }
         }
@@ -152,9 +136,9 @@ impl ApiRouter {
 
     /// Route a request to the appropriate handler
     pub async fn route_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
-        // ✅ SINGLE FLUSH PATH - API endpoints
+        // ✅ SINGLE FLUSH PATH
         if request.path == "/api/flush" && request.method == "POST" {
-            let port = get_port();
+            let port = crate::web::get_port();
             log::info!("curl 127.0.0.1:{}/api/flush received", port);
             log::info!("Flushing traffic statistics while service keep running");
             
@@ -171,7 +155,7 @@ impl ApiRouter {
             }
         }
         
-        // ✅ API SHUTDOWN endpoint
+        // ✅ API SHUTDOWN
         if request.path == "/api/shutdown" && request.method == "POST" {
             log::info!("API shutdown request received");
             match crate::command::flush_all(true).await {
@@ -186,7 +170,7 @@ impl ApiRouter {
             }
         }
 
-        // Original routing logic
+        // Try to find a handler that supports this route
         for handler in self.handlers.values() {
             for route in handler.supported_routes() {
                 if request.path.starts_with(route) {
@@ -195,9 +179,9 @@ impl ApiRouter {
             }
         }
 
+        // No handler found
         Ok(HttpResponse::not_found())
     }
-
 }
 
 /// 从原始字节解析 HTTP 请求
@@ -275,4 +259,9 @@ pub async fn send_http_response(stream: &mut TcpStream, response: &HttpResponse)
 
     stream.write_all(http_response.as_bytes()).await?;
     Ok(())
+}
+
+/// Register system flush endpoints
+pub fn register_system_endpoints(api: &mut ApiRouter) {
+    api.handlers.insert("system".into(), ApiHandler::System);
 }

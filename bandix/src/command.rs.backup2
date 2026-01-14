@@ -1,26 +1,27 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use scopeguard;
+
+static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use scopeguard;
+
+static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use scopeguard;
+
+static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
 use crate::device::DeviceManager;
+
 use crate::ebpf::shared::load_shared;
 use crate::monitor::{ConnectionModuleContext, DnsModuleContext, ModuleContext, MonitorManager, TrafficModuleContext};
 use crate::system::log_startup_info;
 use crate::utils::network_utils::get_interface_info;
 use crate::web;
-
 use aya::maps::Array;
 use clap::{Args, Parser};
-
-// ✅ FLUSH SYSTEM IMPORTS (HANYA SATU KALI)
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
-use scopeguard;
-
-use log::info;
-use log::LevelFilter;
-use tokio::signal;
-
-// ✅ ATOMIC FLUSH GUARD (HANYA SATU KALI)
-static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 use log::info;
 use log::LevelFilter;
 use std::sync::{Arc, Mutex};
@@ -764,15 +765,15 @@ pub async fn flush_all(stop_service: bool) -> Result<(), anyhow::Error> {
     
     // ✅ DAEMON SAFE sequential flush
     log::info!("[1/3] Flushing traffic statistics...");
-    traffic::flush().await;
+    crate::monitor::traffic::flush().await;
     log::info!("✓ Traffic flushed");
     
     log::info!("[2/3] Flushing connection statistics...");
-    connection::flush().await;
+    crate::monitor::connection::flush().await;
     log::info!("✓ Connections flushed");
     
     log::info!("[3/3] Flushing DNS cache...");
-    dns::flush().await;
+    crate::monitor::dns::flush().await;
     log::info!("✓ DNS flushed");
     
     // ✅ INTERVAL FLUSH tetap aktif untuk soft flush

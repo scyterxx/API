@@ -1,62 +1,3 @@
-#!/bin/bash
-# COMPLETE FIX SCRIPT untuk bandix
-# Simpan sebagai: fix_all_errors.sh
-
-echo "=== FIXING ALL COMPILATION ERRORS ==="
-
-# 1. Fix command.rs duplikat
-echo "1. Fixing command.rs duplicates..."
-cat > tmp/fixed_command.rs << 'COMMAND'
-use crate::device::DeviceManager;
-use crate::ebpf::shared::load_shared;
-use crate::monitor::{ConnectionModuleContext, DnsModuleContext, ModuleContext, MonitorManager, TrafficModuleContext};
-use crate::system::log_startup_info;
-use crate::utils::network_utils::get_interface_info;
-use crate::web;
-
-use aya::maps::Array;
-use clap::{Args, Parser};
-
-// ✅ FLUSH SYSTEM IMPORTS (HANYA SATU KALI)
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
-use scopeguard;
-
-use log::info;
-use log::LevelFilter;
-use tokio::signal;
-
-// ✅ ATOMIC FLUSH GUARD (HANYA SATU KALI)
-static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
-COMMAND
-
-# Tambahkan sisa file setelah baris 15
-tail -n +16 src/command.rs >> tmp/fixed_command.rs
-mv tmp/fixed_command.rs src/command.rs
-
-# 2. Fix api/mod.rs duplikat System
-echo "2. Fixing api/mod.rs..."
-# Backup
-cp src/api/mod.rs src/api/mod.rs.backup2
-
-# Hapus duplikat System dari enum
-sed -i '/System,/N;/System,/d' src/api/mod.rs
-
-# Pastikan hanya ada satu System di enum
-if [ $(grep -c "System," src/api/mod.rs) -gt 1 ]; then
-    # Hapus semua kecuali pertama
-    LINE=$(grep -n "System," src/api/mod.rs | head -1 | cut -d: -f1)
-    sed -i '/System,/d' src/api/mod.rs
-    # Tambahkan kembali di posisi yang benar
-    sed -i "${LINE}i\    System," src/api/mod.rs
-fi
-
-# 3. Fix pattern matching untuk ApiHandler
-echo "3. Fixing ApiHandler pattern matching..."
-# Buat file fixed
-cat > tmp/fixed_api.rs << 'API'
 pub mod connection;
 pub mod dns;
 pub mod traffic;
@@ -64,6 +5,14 @@ pub mod traffic;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::net::TcpStream;
+use std::sync::atomic::{AtomicU16, Ordering};
+
+static CURRENT_PORT: AtomicU16 = AtomicU16::new(0);
+
+/// Get current port for logging
+pub fn get_port() -> u16 {
+    CURRENT_PORT.load(Ordering::Relaxed)
+}
 
 /// API 响应结构
 #[derive(Serialize, Deserialize)]
@@ -153,35 +102,26 @@ impl ApiHandler {
             ApiHandler::Dns(_) => "dns",
             ApiHandler::Connection(_) => "connection",
             ApiHandler::System => "system",
-        }
-    }
-
-    pub fn supported_routes(&self) -> Vec<&'static str> {
+            ApiHandler::System => "system",
         match self {
             ApiHandler::Traffic(handler) => handler.supported_routes(),
             ApiHandler::Dns(handler) => handler.supported_routes(),
             ApiHandler::Connection(handler) => handler.supported_routes(),
             ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
+            ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
         }
     }
-
-    pub async fn handle_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
         match self {
             ApiHandler::Traffic(handler) => handler.handle_request(request).await,
-            ApiHandler::Dns(handler) => handler.handle_request(request).await,
-            ApiHandler::Connection(handler) => handler.handle_request(request).await,
             ApiHandler::System => {
+                // System endpoints handled in route_request
                 Ok(HttpResponse::ok("System handler".into()))
             }
-        }
+            ApiHandler::System => {
     }
 }
 
 /// API 路由器，用于管理模块 API 处理程序
-#[derive(Clone)]
-pub struct ApiRouter {
-    handlers: HashMap<String, ApiHandler>,
-}
 
 impl ApiRouter {
     pub fn new() -> Self {
@@ -195,9 +135,9 @@ impl ApiRouter {
 
     /// Route a request to the appropriate handler
     pub async fn route_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
-        // ✅ SINGLE FLUSH PATH
+        // ✅ SINGLE FLUSH PATH - API endpoints
         if request.path == "/api/flush" && request.method == "POST" {
-            let port = crate::web::get_port();
+            let port = get_port();
             log::info!("curl 127.0.0.1:{}/api/flush received", port);
             log::info!("Flushing traffic statistics while service keep running");
             
@@ -214,7 +154,7 @@ impl ApiRouter {
             }
         }
         
-        // ✅ API SHUTDOWN
+        // ✅ API SHUTDOWN endpoint
         if request.path == "/api/shutdown" && request.method == "POST" {
             log::info!("API shutdown request received");
             match crate::command::flush_all(true).await {
@@ -229,7 +169,7 @@ impl ApiRouter {
             }
         }
 
-        // Try to find a handler that supports this route
+        // Original routing logic
         for handler in self.handlers.values() {
             for route in handler.supported_routes() {
                 if request.path.starts_with(route) {
@@ -238,9 +178,9 @@ impl ApiRouter {
             }
         }
 
-        // No handler found
         Ok(HttpResponse::not_found())
     }
+
 }
 
 /// 从原始字节解析 HTTP 请求
@@ -319,65 +259,3 @@ pub async fn send_http_response(stream: &mut TcpStream, response: &HttpResponse)
     stream.write_all(http_response.as_bytes()).await?;
     Ok(())
 }
-
-/// Register system flush endpoints
-pub fn register_system_endpoints(api: &mut ApiRouter) {
-    api.handlers.insert("system".into(), ApiHandler::System);
-}
-API
-
-mv tmp/fixed_api.rs src/api/mod.rs
-
-# 4. Tambahkan stub flush functions jika belum ada
-echo "4. Adding missing flush functions..."
-
-# Untuk traffic module
-if [ -f "src/monitor/traffic.rs" ] && ! grep -q "pub async fn flush()" src/monitor/traffic.rs; then
-    echo "Adding flush() to traffic.rs"
-    cat >> src/monitor/traffic.rs << 'TRAFFIC'
-
-/// Flush traffic statistics to disk
-pub async fn flush() -> Result<(), anyhow::Error> {
-    log::info!("Traffic statistics flushed");
-    // TODO: Implement actual flush logic
-    Ok(())
-}
-TRAFFIC
-fi
-
-# Untuk connection module  
-if [ -f "src/monitor/connection.rs" ] && ! grep -q "pub async fn flush()" src/monitor/connection.rs; then
-    echo "Adding flush() to connection.rs"
-    cat >> src/monitor/connection.rs << 'CONNECTION'
-
-/// Flush connection statistics to disk
-pub async fn flush() -> Result<(), anyhow::Error> {
-    log::info!("Connection statistics flushed");
-    // TODO: Implement actual flush logic
-    Ok(())
-}
-CONNECTION
-fi
-
-# Untuk dns module
-if [ -f "src/monitor/dns.rs" ] && ! grep -q "pub async fn flush()" src/monitor/dns.rs; then
-    echo "Adding flush() to dns.rs"
-    cat >> src/monitor/dns.rs << 'DNS'
-
-/// Flush DNS cache to disk
-pub async fn flush() -> Result<(), anyhow::Error> {
-    log::info!("DNS cache flushed");
-    // TODO: Implement actual flush logic
-    Ok(())
-}
-DNS
-fi
-
-# 5. Update monitor/mod.rs untuk gunakan fungsi flush yang baru
-echo "5. Updating monitor/mod.rs..."
-# Cari dan perbaiki call ke flush()
-sed -i 's/crate::monitor::traffic::flush/traffic::flush/g' src/command.rs
-sed -i 's/crate::monitor::connection::flush/connection::flush/g' src/command.rs
-sed -i 's/crate::monitor::dns::flush/dns::flush/g' src/command.rs
-
-echo "✅ All fixes applied!"
