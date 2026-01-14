@@ -2,7 +2,7 @@
 # Copyright (c) 2025 SMALLPROGRAM <https://github.com/smallprogram>
 # Description: Auto compile
 #
-name: "Build Bandix 🚀"
+name: "Pedet 🚀"
 on:
   repository_dispatch:
   workflow_dispatch:

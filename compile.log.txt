@@ -1,277 +1,153 @@
-rust-src already installed for nightly
-Starting build for all target platforms...
+all target platforms...
 ========================================
-
 Starting build for aarch64-unknown-linux-musl...
-error: struct is not supported in `trait`s or `impl`s
-   --> bandix/src/monitor/traffic.rs:133:1
+error[E0432]: unresolved import `crate::monitor::connection`
+ --> bandix/src/api/connection.rs:2:21
+  |
+2 | use crate::monitor::connection::GlobalConnectionStats;
+  |                     ^^^^^^^^^^ could not find `connection` in `monitor`
+error[E0432]: unresolved import `crate::monitor::DnsQueryRecord`
+ --> bandix/src/api/dns.rs:3:5
+  |
+3 | use crate::monitor::DnsQueryRecord;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `DnsQueryRecord` in `monitor`
+error[E0432]: unresolved imports `crate::monitor::ConnectionModuleContext`, `crate::monitor::DnsModuleContext`, `crate::monitor::ModuleContext`, `crate::monitor::MonitorManager`, `crate::monitor::TrafficModuleContext`
+ --> bandix/src/command.rs:4:22
+  |
+4 | use crate::monitor::{ConnectionModuleContext, DnsModuleContext, ModuleContext, MonitorManager, TrafficModuleContext};
+  |                      ^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^ no `TrafficModuleContext` in `monitor`
+  |                      |                        |                 |              |
+  |                      |                        |                 |              no `MonitorManager` in `monitor`
+  |                      |                        |                 no `ModuleContext` in `monitor`
+  |                      |                        no `DnsModuleContext` in `monitor`
+  |                      no `ConnectionModuleContext` in `monitor`
+error[E0412]: cannot find type `DnsQueryRecord` in module `crate::monitor`
+   --> bandix/src/api/dns.rs:238:72
     |
-133 | struct TrafficExportDevice {
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+238 |     fn _generate_test_data(dns_queries: &Arc<Mutex<Vec<crate::monitor::DnsQueryRecord>>>) {
+    |                                                                        ^^^^^^^^^^^^^^ not found in `crate::monitor`
+error[E0422]: cannot find struct, variant or union type `DnsQueryRecord` in module `crate::monitor`
+   --> bandix/src/api/dns.rs:350:42
     |
-    = help: consider moving the struct out to a nearby module scope
-
-error: struct is not supported in `trait`s or `impl`s
-   --> bandix/src/monitor/traffic.rs:153:1
+350 |             queries.push(crate::monitor::DnsQueryRecord {
+    |                                          ^^^^^^^^^^^^^^ not found in `crate::monitor`
+error[E0282]: type annotations needed
+   --> bandix/src/api/dns.rs:610:70
     |
-153 | struct TrafficExportPayload {
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+610 |         let queries = if let Ok(queries) = self.dns_queries.lock() { queries.clone() } else { vec![] };
+    |                                                                      ^^^^^^^ cannot infer type
+error[E0282]: type annotations needed
+   --> bandix/src/command.rs:642:9
     |
-    = help: consider moving the struct out to a nearby module scope
-
-error: implementation is not supported in `trait`s or `impl`s
-   --> bandix/src/monitor/traffic.rs:158:1
+642 |     let mut tasks = monitor_manager.start_modules(module_contexts, shutdown_notify.clone()).await?;
+    |         ^^^^^^^^^
+643 |
+644 |     tasks.push(web_task);
+    |     ----- type must be known at this point
     |
-158 | impl TrafficMonitor {
-    | ^^^^^^^^^^^^^^^^^^^
+help: consider giving `tasks` an explicit type
     |
-    = help: consider moving the implementation out to a nearby module scope
-
-error[E0252]: the name `AtomicBool` is defined multiple times
-   --> bandix/src/monitor/mod.rs:453:25
+642 |     let mut tasks: /* Type */ = monitor_manager.start_modules(module_contexts, shutdown_notify.clone()).await?;
+    |                  ++++++++++++
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `connection`
+  --> bandix/src/monitor/mod.rs:20:5
+   |
+20 |     connection::flush().await;
+   |     ^^^^^^^^^^ use of unresolved module or unlinked crate `connection`
+   |
+help: to make use of source file bandix/src/monitor/connection.rs, use `mod connection` in this file to declare the module
+  --> bandix/src/main.rs:1:1
+   |
+ 1 + mod connection;
+   |
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `dns`
+  --> bandix/src/monitor/mod.rs:21:5
+   |
+21 |     dns::flush().await;
+   |     ^^^ use of unresolved module or unlinked crate `dns`
+   |
+help: to make use of source file bandix/src/monitor/dns.rs, use `mod dns` in this file to declare the module
+  --> bandix/src/main.rs:1:1
+   |
+ 1 + mod dns;
+   |
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `traffic`
+  --> bandix/src/monitor/mod.rs:22:5
+   |
+22 |     traffic::flush().await;
+   |     ^^^^^^^ use of unresolved module or unlinked crate `traffic`
+   |
+help: to make use of source file bandix/src/monitor/traffic.rs, use `mod traffic` in this file to declare the module
+  --> bandix/src/main.rs:1:1
+   |
+ 1 + mod traffic;
+   |
+error[E0425]: cannot find function `persist_all` in this scope
+  --> bandix/src/monitor/mod.rs:24:5
+   |
+24 |     persist_all().await;
+   |     ^^^^^^^^^^^ not found in this scope
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `connection`
+  --> bandix/src/monitor/mod.rs:38:5
+   |
+38 |     connection::flush().await;
+   |     ^^^^^^^^^^ use of unresolved module or unlinked crate `connection`
+   |
+help: to make use of source file bandix/src/monitor/connection.rs, use `mod connection` in this file to declare the module
+  --> bandix/src/main.rs:1:1
+   |
+ 1 + mod connection;
+   |
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `dns`
+  --> bandix/src/monitor/mod.rs:39:5
+   |
+39 |     dns::flush().await;
+   |     ^^^ use of unresolved module or unlinked crate `dns`
+   |
+help: to make use of source file bandix/src/monitor/dns.rs, use `mod dns` in this file to declare the module
+  --> bandix/src/main.rs:1:1
+   |
+ 1 + mod dns;
+   |
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `traffic`
+  --> bandix/src/monitor/mod.rs:40:5
+   |
+40 |     traffic::flush().await;
+   |     ^^^^^^^ use of unresolved module or unlinked crate `traffic`
+   |
+help: to make use of source file bandix/src/monitor/traffic.rs, use `mod traffic` in this file to declare the module
+  --> bandix/src/main.rs:1:1
+   |
+ 1 + mod traffic;
+   |
+error[E0425]: cannot find function `persist_all` in this scope
+  --> bandix/src/monitor/mod.rs:42:5
+   |
+42 |     persist_all().await;
+   |     ^^^^^^^^^^^ not found in this scope
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `storage`
+  --> bandix/src/monitor/mod.rs:44:21
+   |
+44 |     if let Err(e) = storage::sync_barrier() {
+   |                     ^^^^^^^ use of unresolved module or unlinked crate `storage`
+   |
+   = help: if you wanted to use a crate named `storage`, use `cargo add storage` to add it to your `Cargo.toml`
+error[E0282]: type annotations needed
+   --> bandix/src/api/dns.rs:239:13
     |
- 12 | use std::sync::atomic::{AtomicBool, Ordering};
-    |                         ---------- previous import of the type `AtomicBool` here
+239 |         let mut queries = match dns_queries.lock() {
+    |             ^^^^^^^^^^^
 ...
-453 | use std::sync::atomic::{AtomicBool, Ordering};
-    |                         ^^^^^^^^^^--
-    |                         |
-    |                         `AtomicBool` reimported here
-    |                         help: remove unnecessary import
+244 |         if queries.len() > 100 {
+    |            ------- type must be known at this point
     |
-    = note: `AtomicBool` must be defined only once in the type namespace of this module
-
-error[E0252]: the name `Ordering` is defined multiple times
-   --> bandix/src/monitor/mod.rs:453:37
+help: consider giving `queries` an explicit type
     |
- 12 | use std::sync::atomic::{AtomicBool, Ordering};
-    |                                     -------- previous import of the type `Ordering` here
-...
-453 | use std::sync::atomic::{AtomicBool, Ordering};
-    |                                     ^^^^^^^^ `Ordering` reimported here
-    |
-    = note: `Ordering` must be defined only once in the type namespace of this module
-
-error[E0432]: unresolved import `crate::api::ApiHandler`
-   --> bandix/src/monitor/mod.rs:274:62
-    |
-274 |                 use crate::api::{traffic::TrafficApiHandler, ApiHandler};
-    |                                                              ^^^^^^^^^^ no `ApiHandler` in `api`
-
-error[E0432]: unresolved import `crate::api::ApiHandler`
-   --> bandix/src/monitor/mod.rs:295:54
-    |
-295 |                 use crate::api::{dns::DnsApiHandler, ApiHandler};
-    |                                                      ^^^^^^^^^^ no `ApiHandler` in `api`
-
-error[E0432]: unresolved import `crate::api::ApiHandler`
-   --> bandix/src/monitor/mod.rs:309:68
-    |
-309 |                 use crate::api::{connection::ConnectionApiHandler, ApiHandler};
-    |                                                                    ^^^^^^^^^^ no `ApiHandler` in `api`
-
-error[E0425]: cannot find function `handle_get_stats` in module `traffic`
-   --> bandix/src/api/mod.rs:101:26
-    |
-101 |                 traffic::handle_get_stats().await
-    |                          ^^^^^^^^^^^^^^^^ not found in `traffic`
-
-error[E0425]: cannot find function `handle_get_connections` in module `connection`
-   --> bandix/src/api/mod.rs:106:29
-    |
-106 |                 connection::handle_get_connections().await
-    |                             ^^^^^^^^^^^^^^^^^^^^^^ not found in `connection`
-
-error[E0425]: cannot find function `handle_get_logs` in module `dns`
-   --> bandix/src/api/mod.rs:111:22
-    |
-111 |                 dns::handle_get_logs().await
-    |                      ^^^^^^^^^^^^^^^ not found in `dns`
-
-error[E0412]: cannot find type `TrafficExportPayload` in this scope
-  --> bandix/src/monitor/traffic.rs:22:42
-   |
-22 |     export_latest: Arc<TokioMutex<Option<TrafficExportPayload>>>,
-   |                                          ^^^^^^^^^^^^^^^^^^^^ not found in this scope
-   |
-help: you might be missing a type parameter
-   |
-19 | pub struct TrafficMonitor<TrafficExportPayload> {
-   |                          ++++++++++++++++++++++
-
-warning: unused import: `error`
- --> bandix/src/api/mod.rs:8:11
-  |
-8 | use log::{error, debug};
-  |           ^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `crate::web`
- --> bandix/src/command.rs:7:5
-  |
-7 | use crate::web;
-  |     ^^^^^^^^^^
-
-warning: unused import: `aya::maps::HashMap`
- --> bandix/src/monitor/traffic.rs:3:5
-  |
-3 | use aya::maps::HashMap;
-  |     ^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `aya::maps::MapData`
- --> bandix/src/monitor/traffic.rs:4:5
-  |
-4 | use aya::maps::MapData;
-  |     ^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `serde::Serialize`
- --> bandix/src/monitor/traffic.rs:5:5
-  |
-5 | use serde::Serialize;
-  |     ^^^^^^^^^^^^^^^^
-
-warning: unused import: `std::collections::HashMap as StdHashMap`
- --> bandix/src/monitor/traffic.rs:6:5
-  |
-6 | use std::collections::HashMap as StdHashMap;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `Ordering`
- --> bandix/src/monitor/traffic.rs:7:37
-  |
-7 | use std::sync::atomic::{AtomicBool, Ordering};
-  |                                     ^^^^^^^^
-
-warning: unused imports: `AtomicBool` and `Ordering`
-   --> bandix/src/monitor/mod.rs:453:25
-    |
-453 | use std::sync::atomic::{AtomicBool, Ordering};
-    |                         ^^^^^^^^^^  ^^^^^^^^
-
-error[E0308]: mismatched types
-   --> bandix/src/web.rs:50:44
-    |
- 50 |     let request = match parse_http_request(&buffer[..n]) {
-    |                         ------------------ ^^^^^^^^^^^^ expected `&str`, found `&[u8]`
-    |                         |
-    |                         arguments to this function are incorrect
-    |
-    = note: expected reference `&str`
-               found reference `&[u8]`
-note: function defined here
-   --> bandix/src/api/mod.rs:121:8
-    |
-121 | pub fn parse_http_request(request_str: &str) -> Result<HttpRequest, anyhow::Error> {
-    |        ^^^^^^^^^^^^^^^^^^ -----------------
-
-error[E0599]: no method named `process_traffic_data` found for reference `&TrafficMonitor` in the current scope
-   --> bandix/src/monitor/traffic.rs:100:30
-    |
-100 |         if let Err(e) = self.process_traffic_data(ctx, &ingress_ebpf).await {
-    |                              ^^^^^^^^^^^^^^^^^^^^ method not found in `&TrafficMonitor`
-
-error[E0599]: no method named `apply_rate_limits` found for reference `&TrafficMonitor` in the current scope
-   --> bandix/src/monitor/traffic.rs:105:30
-    |
-105 |         if let Err(e) = self.apply_rate_limits(ctx, &ingress_ebpf) {
-    |                              ^^^^^^^^^^^^^^^^^ method not found in `&TrafficMonitor`
-
-error[E0599]: no method named `export_devices_snapshot` found for reference `&TrafficMonitor` in the current scope
-   --> bandix/src/monitor/traffic.rs:126:18
-    |
-126 |             self.export_devices_snapshot(ctx, export_url.to_string(), ts_ms, &traffic_snapshot)
-    |                  ^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&TrafficMonitor`
-
-error[E0599]: no method named `register_handler` found for mutable reference `&mut ApiRouter` in the current scope
-   --> bandix/src/monitor/mod.rs:290:28
-    |
-290 |                 api_router.register_handler(handler);
-    |                            ^^^^^^^^^^^^^^^^ method not found in `&mut ApiRouter`
-
-error[E0599]: no method named `register_handler` found for mutable reference `&mut ApiRouter` in the current scope
-   --> bandix/src/monitor/mod.rs:305:28
-    |
-305 |                 api_router.register_handler(handler);
-    |                            ^^^^^^^^^^^^^^^^ method not found in `&mut ApiRouter`
-
-error[E0599]: no method named `register_handler` found for mutable reference `&mut ApiRouter` in the current scope
-   --> bandix/src/monitor/mod.rs:318:28
-    |
-318 |                 api_router.register_handler(handler);
-    |                            ^^^^^^^^^^^^^^^^ method not found in `&mut ApiRouter`
-
-error[E0599]: no method named `post` found for mutable reference `&mut ApiRouter` in the current scope
-   --> bandix/src/api/mod.rs:199:12
-    |
-199 |     router.post("/api/flush", |_| async {
-    |     -------^^^^ method not found in `&mut ApiRouter`
-
-error[E0599]: no function or associated item named `ok` found for struct `ApiResponse<T>` in the current scope
-   --> bandix/src/api/mod.rs:201:22
-    |
- 12 | pub struct ApiResponse<T> {
-    | ------------------------- function or associated item `ok` not found for this struct
-...
-201 |         ApiResponse::ok("flushed")
-    |                      ^^ function or associated item not found in `ApiResponse<_>`
-    |
-note: if you're trying to build a new `ApiResponse<_>` consider using one of the following associated functions:
-      ApiResponse::<T>::success
-      ApiResponse::<T>::error
-   --> bandix/src/api/mod.rs:19:5
-    |
- 19 |     pub fn success(data: T) -> Self {
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-...
- 27 |     pub fn error(message: String) -> Self {
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-error[E0599]: no method named `collect_traffic_data` found for reference `&TrafficMonitor` in the current scope
-  --> bandix/src/monitor/traffic.rs:41:20
-   |
-41 |         match self.collect_traffic_data(&ebpf) {
-   |                    ^^^^^^^^^^^^^^^^^^^^ method not found in `&TrafficMonitor`
-
-warning: unused variable: `router`
-  --> bandix/src/api/connection.rs:10:17
-   |
-10 | pub fn register(router: &mut crate::api::ApiRouter) {
-   |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_router`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `router`
- --> bandix/src/api/dns.rs:9:17
-  |
-9 | pub fn register(router: &mut crate::api::ApiRouter) {
-  |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_router`
-
-warning: unused variable: `router`
-  --> bandix/src/api/traffic.rs:13:17
-   |
-13 | pub fn register(router: &mut crate::api::ApiRouter) {
-   |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_router`
-
-warning: unused variable: `args`
-   --> bandix/src/command.rs:727:29
-    |
-727 | pub async fn handle_command(args: Options, command: Commands) -> Result<(), anyhow::Error> {
-    |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
-
-Some errors have detailed explanations: E0252, E0308, E0412, E0425, E0432, E0599.
-For more information about an error, try `rustc --explain E0252`.
-error: could not compile `bandix` (bin "bandix") due to 22 previous errors; 12 warnings emitted
+239 |         let mut queries: /* Type */ = match dns_queries.lock() {
+    |                        ++++++++++++
+Some errors have detailed explanations: E0282, E0412, E0422, E0425, E0432, E0433.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `bandix` (bin "bandix") due to 17 previous errors
 ✗ cargo build failed: aarch64-unknown-linux-musl
 ----------------------------------------
-
 Build completion summary:
-========================================
-✓ Successfully built: 0 targets
-✗ Failed builds: 1 targets
-Failed targets:
-  - aarch64-unknown-linux-musl
-
-Release packages located in release directory
-Disk usage:
-  Total size: 4.0K	rel
