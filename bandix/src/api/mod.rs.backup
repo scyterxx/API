@@ -13,6 +13,22 @@ static CURRENT_PORT: AtomicU16 = AtomicU16::new(0);
 pub fn get_port() -> u16 {
     CURRENT_PORT.load(Ordering::Relaxed)
 }
+use std::sync::atomic::{AtomicU16, Ordering};
+
+static CURRENT_PORT: AtomicU16 = AtomicU16::new(0);
+
+/// Get current port for logging
+pub fn get_port() -> u16 {
+    CURRENT_PORT.load(Ordering::Relaxed)
+}
+use std::sync::atomic::{AtomicU16, Ordering};
+
+static CURRENT_PORT: AtomicU16 = AtomicU16::new(0);
+
+/// Get current port for logging
+pub fn get_port() -> u16 {
+    CURRENT_PORT.load(Ordering::Relaxed)
+}
 
 /// API 响应结构
 #[derive(Serialize, Deserialize)]
@@ -94,6 +110,8 @@ pub enum ApiHandler {
     Connection(crate::api::connection::ConnectionApiHandler),
     System,
     System,
+    System,
+    System,
 }
 
 impl ApiHandler {
@@ -102,6 +120,8 @@ impl ApiHandler {
             ApiHandler::Traffic(_) => "traffic",
             ApiHandler::Dns(_) => "dns",
             ApiHandler::Connection(_) => "connection",
+            ApiHandler::System => "system",
+            ApiHandler::System => "system",
             ApiHandler::System => "system",
             ApiHandler::System => "system",
         }
@@ -114,6 +134,8 @@ impl ApiHandler {
             ApiHandler::Connection(handler) => handler.supported_routes(),
             ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
             ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
+            ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
+            ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
         }
     }
 
@@ -122,6 +144,14 @@ impl ApiHandler {
             ApiHandler::Traffic(handler) => handler.handle_request(request).await,
             ApiHandler::Dns(handler) => handler.handle_request(request).await,
             ApiHandler::Connection(handler) => handler.handle_request(request).await,
+            ApiHandler::System => {
+                // System endpoints handled in route_request
+                Ok(HttpResponse::ok("System handler".into()))
+            }
+            ApiHandler::System => {
+                // System endpoints handled in route_request
+                Ok(HttpResponse::ok("System handler".into()))
+            }
             ApiHandler::System => {
                 // System endpoints handled in route_request
                 Ok(HttpResponse::ok("System handler".into()))
@@ -152,41 +182,7 @@ impl ApiRouter {
 
     /// Route a request to the appropriate handler
     pub async fn route_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
-        // ✅ SINGLE FLUSH PATH - API endpoints
-        if request.path == "/api/flush" && request.method == "POST" {
-            let port = get_port();
-            log::info!("curl 127.0.0.1:{}/api/flush received", port);
-            log::info!("Flushing traffic statistics while service keep running");
-            
-            match crate::command::flush_all(false).await {
-                Ok(_) => {
-                    return Ok(HttpResponse::ok(
-                        r#"{"status":"success","message":"Data flushed, service continues"}"#.to_string()
-                    ));
-                }
-                Err(e) => {
-                    log::error!("API flush failed: {}", e);
-                    return Ok(HttpResponse::error(500, format!("Flush failed: {}", e)));
-                }
-            }
-        }
-        
-        // ✅ API SHUTDOWN endpoint
-        if request.path == "/api/shutdown" && request.method == "POST" {
-            log::info!("API shutdown request received");
-            match crate::command::flush_all(true).await {
-                Ok(_) => {
-                    log::info!("Shutdown flush complete, exiting...");
-                    std::process::exit(0);
-                }
-                Err(e) => {
-                    log::error!("Shutdown flush failed: {}", e);
-                    std::process::exit(1);
-                }
-            }
-        }
-
-        // Original routing logic
+        // Try to find a handler that supports this route
         for handler in self.handlers.values() {
             for route in handler.supported_routes() {
                 if request.path.starts_with(route) {
@@ -195,9 +191,9 @@ impl ApiRouter {
             }
         }
 
+        // No handler found
         Ok(HttpResponse::not_found())
     }
-
 }
 
 /// 从原始字节解析 HTTP 请求

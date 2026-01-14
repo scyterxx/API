@@ -1,3 +1,14 @@
+#!/bin/sh
+# SIMPLE WEB PATCH - tidak pakai sed kompleks
+# Simpan sebagai: simple_web_patch.sh
+
+echo "Patching web.rs..."
+
+# Backup
+cp src/web.rs src/web.rs.backup
+
+# 1. Buat file baru dengan patch
+cat > tmp/web_patched.rs << 'EOF'
 use crate::api::{parse_http_request, send_http_response, ApiRouter};
 use crate::command::Options;
 use chrono::Local;
@@ -114,3 +125,16 @@ async fn handle_connection(mut stream: TcpStream, api_router: ApiRouter) -> Resu
 
     Ok(())
 }
+EOF
+
+# Ganti file asli dengan yang sudah dipatch
+mv tmp/web_patched.rs src/web.rs
+
+echo "✅ Web module patched successfully!"
+echo ""
+echo "Verification:"
+echo "1. get_port function:"
+grep -n "pub fn get_port" src/web.rs
+echo ""
+echo "2. CURRENT_PORT store:"
+grep -n "CURRENT_PORT.store" src/web.rs
