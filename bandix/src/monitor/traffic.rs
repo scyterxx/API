@@ -555,7 +555,7 @@ impl TrafficMonitor {
         });
     }
 
-
+}
 
 pub async fn flush() {
     log::info!("Flushing traffic module data and executing system sync");
