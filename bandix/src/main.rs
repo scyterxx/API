@@ -13,8 +13,7 @@ use command::{run, Options};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-#[tokio::main]
-async fn main() -> Result<()> {
+
     // Initialize logging
     env_logger::init();
     
