@@ -449,3 +449,17 @@ pub async fn flush_all() {
 
     FLUSH_IN_PROGRESS.store(false, Ordering::SeqCst);
 }
+
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static CAPTURE_RUNNING: AtomicBool = AtomicBool::new(true);
+
+pub fn stop_capture() {
+    if CAPTURE_RUNNING.swap(false, Ordering::SeqCst) {
+        log::info!("capture stopped");
+    }
+}
+
+pub fn capture_enabled() -> bool {
+    CAPTURE_RUNNING.load(Ordering::SeqCst)
+}

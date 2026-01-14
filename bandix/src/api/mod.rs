@@ -193,6 +193,11 @@ pub async fn send_http_response(stream: &mut TcpStream, response: &HttpResponse)
 }
 
 // Fungsi registrasi kosong agar tidak error saat dipanggil dari monitor/mod.rs
-pub fn register_flush(_router: &mut ApiRouter) {
-    debug!("Flush API registered");
+use crate::monitor;
+
+pub fn register_flush(router: &mut ApiRouter) {
+    router.post("/api/flush", |_| async {
+        monitor::flush_all().await;
+        ApiResponse::ok("flushed")
+    });
 }
