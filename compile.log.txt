@@ -1,5 +1,4 @@
-rust-src component for nightly (required for build-std)...
-✓ rust-src already installed for nightly
+rust-src already installed for nightly
 Starting build for all target platforms...
 ========================================
 
@@ -27,6 +26,31 @@ error: implementation is not supported in `trait`s or `impl`s
     | ^^^^^^^^^^^^^^^^^^^
     |
     = help: consider moving the implementation out to a nearby module scope
+
+error[E0252]: the name `AtomicBool` is defined multiple times
+   --> bandix/src/monitor/mod.rs:453:25
+    |
+ 12 | use std::sync::atomic::{AtomicBool, Ordering};
+    |                         ---------- previous import of the type `AtomicBool` here
+...
+453 | use std::sync::atomic::{AtomicBool, Ordering};
+    |                         ^^^^^^^^^^--
+    |                         |
+    |                         `AtomicBool` reimported here
+    |                         help: remove unnecessary import
+    |
+    = note: `AtomicBool` must be defined only once in the type namespace of this module
+
+error[E0252]: the name `Ordering` is defined multiple times
+   --> bandix/src/monitor/mod.rs:453:37
+    |
+ 12 | use std::sync::atomic::{AtomicBool, Ordering};
+    |                                     -------- previous import of the type `Ordering` here
+...
+453 | use std::sync::atomic::{AtomicBool, Ordering};
+    |                                     ^^^^^^^^ `Ordering` reimported here
+    |
+    = note: `Ordering` must be defined only once in the type namespace of this module
 
 error[E0432]: unresolved import `crate::api::ApiHandler`
    --> bandix/src/monitor/mod.rs:274:62
@@ -119,6 +143,12 @@ warning: unused import: `Ordering`
 7 | use std::sync::atomic::{AtomicBool, Ordering};
   |                                     ^^^^^^^^
 
+warning: unused imports: `AtomicBool` and `Ordering`
+   --> bandix/src/monitor/mod.rs:453:25
+    |
+453 | use std::sync::atomic::{AtomicBool, Ordering};
+    |                         ^^^^^^^^^^  ^^^^^^^^
+
 error[E0308]: mismatched types
    --> bandix/src/web.rs:50:44
     |
@@ -171,6 +201,32 @@ error[E0599]: no method named `register_handler` found for mutable reference `&m
 318 |                 api_router.register_handler(handler);
     |                            ^^^^^^^^^^^^^^^^ method not found in `&mut ApiRouter`
 
+error[E0599]: no method named `post` found for mutable reference `&mut ApiRouter` in the current scope
+   --> bandix/src/api/mod.rs:199:12
+    |
+199 |     router.post("/api/flush", |_| async {
+    |     -------^^^^ method not found in `&mut ApiRouter`
+
+error[E0599]: no function or associated item named `ok` found for struct `ApiResponse<T>` in the current scope
+   --> bandix/src/api/mod.rs:201:22
+    |
+ 12 | pub struct ApiResponse<T> {
+    | ------------------------- function or associated item `ok` not found for this struct
+...
+201 |         ApiResponse::ok("flushed")
+    |                      ^^ function or associated item not found in `ApiResponse<_>`
+    |
+note: if you're trying to build a new `ApiResponse<_>` consider using one of the following associated functions:
+      ApiResponse::<T>::success
+      ApiResponse::<T>::error
+   --> bandix/src/api/mod.rs:19:5
+    |
+ 19 |     pub fn success(data: T) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 27 |     pub fn error(message: String) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 error[E0599]: no method named `collect_traffic_data` found for reference `&TrafficMonitor` in the current scope
   --> bandix/src/monitor/traffic.rs:41:20
    |
@@ -203,9 +259,9 @@ warning: unused variable: `args`
 727 | pub async fn handle_command(args: Options, command: Commands) -> Result<(), anyhow::Error> {
     |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
 
-Some errors have detailed explanations: E0308, E0412, E0425, E0432, E0599.
-For more information about an error, try `rustc --explain E0308`.
-error: could not compile `bandix` (bin "bandix") due to 18 previous errors; 11 warnings emitted
+Some errors have detailed explanations: E0252, E0308, E0412, E0425, E0432, E0599.
+For more information about an error, try `rustc --explain E0252`.
+error: could not compile `bandix` (bin "bandix") due to 22 previous errors; 12 warnings emitted
 ✗ cargo build failed: aarch64-unknown-linux-musl
 ----------------------------------------
 
@@ -218,6 +274,4 @@ Failed targets:
 
 Release packages located in release directory
 Disk usage:
-  Total size: 4.0K	release
-⚠ Some platforms failed to build, please check error messages
-Error: Process completed with exit code 1.
+  Total size: 4.0K	rel
