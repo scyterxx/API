@@ -358,3 +358,10 @@ mod tests {
         }
     }
 }
+
+/// Flush pending data to storage
+pub async fn flush() -> Result<()> {
+    // TODO: Implement actual flush logic
+    info!("Flushing {} data...", stringify!($module));
+    Ok(())
+}

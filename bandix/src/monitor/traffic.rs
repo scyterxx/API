@@ -555,3 +555,10 @@ impl TrafficMonitor {
 
     // events are emitted by DeviceManager background refresh task (neighbor-table based)
 }
+
+/// Flush pending data to storage
+pub async fn flush() -> Result<()> {
+    // TODO: Implement actual flush logic
+    info!("Flushing {} data...", stringify!($module));
+    Ok(())
+}
