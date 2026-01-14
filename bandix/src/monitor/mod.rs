@@ -367,16 +367,18 @@ impl MonitorManager {
             })
             .collect();
 
-        MonitorManager {
+let mut api_router = ApiRouter::new();
+
+use crate::api;
+api::traffic::register(&mut api_router);
+api::dns::register(&mut api_router);
+api::connection::register(&mut api_router);
+api::register_flush(&mut api_router);
+
+MonitorManager {
+    api_router,
             modules,
-            api_router: ApiRouter::new(), // Tambahkan nama field 'api_router:'
-                // Register core API endpoints
-                {
-                    use crate::api;
-                    api::traffic::register(&mut api_router);
-                    api::dns::register(&mut api_router);
-                    api::connection::register(&mut api_router);
-                    api::register_flush(&mut api_router);
+            
                 }
         }
     }
