@@ -555,10 +555,3 @@ impl TrafficMonitor {
 
     // events are emitted by DeviceManager background refresh task (neighbor-table based)
 }
-
-/// Flush traffic statistics to disk
-pub async fn flush() -> Result<(), anyhow::Error> {
-    log::info!("Traffic statistics flushed");
-    // TODO: Implement actual flush logic
-    Ok(())
-}

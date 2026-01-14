@@ -84,7 +84,6 @@ pub enum ApiHandler {
     Traffic(crate::api::traffic::TrafficApiHandler),
     Dns(crate::api::dns::DnsApiHandler),
     Connection(crate::api::connection::ConnectionApiHandler),
-    System,
 }
 
 impl ApiHandler {
@@ -93,7 +92,6 @@ impl ApiHandler {
             ApiHandler::Traffic(_) => "traffic",
             ApiHandler::Dns(_) => "dns",
             ApiHandler::Connection(_) => "connection",
-            ApiHandler::System => "system",
         }
     }
 
@@ -102,7 +100,6 @@ impl ApiHandler {
             ApiHandler::Traffic(handler) => handler.supported_routes(),
             ApiHandler::Dns(handler) => handler.supported_routes(),
             ApiHandler::Connection(handler) => handler.supported_routes(),
-            ApiHandler::System => vec!["/api/flush", "/api/shutdown"],
         }
     }
 
@@ -111,9 +108,6 @@ impl ApiHandler {
             ApiHandler::Traffic(handler) => handler.handle_request(request).await,
             ApiHandler::Dns(handler) => handler.handle_request(request).await,
             ApiHandler::Connection(handler) => handler.handle_request(request).await,
-            ApiHandler::System => {
-                Ok(HttpResponse::ok("System handler".into()))
-            }
         }
     }
 }
@@ -136,40 +130,6 @@ impl ApiRouter {
 
     /// Route a request to the appropriate handler
     pub async fn route_request(&self, request: &HttpRequest) -> Result<HttpResponse, anyhow::Error> {
-        // ✅ SINGLE FLUSH PATH
-        if request.path == "/api/flush" && request.method == "POST" {
-            let port = crate::web::get_port();
-            log::info!("curl 127.0.0.1:{}/api/flush received", port);
-            log::info!("Flushing traffic statistics while service keep running");
-            
-            match crate::command::flush_all(false).await {
-                Ok(_) => {
-                    return Ok(HttpResponse::ok(
-                        r#"{"status":"success","message":"Data flushed, service continues"}"#.to_string()
-                    ));
-                }
-                Err(e) => {
-                    log::error!("API flush failed: {}", e);
-                    return Ok(HttpResponse::error(500, format!("Flush failed: {}", e)));
-                }
-            }
-        }
-        
-        // ✅ API SHUTDOWN
-        if request.path == "/api/shutdown" && request.method == "POST" {
-            log::info!("API shutdown request received");
-            match crate::command::flush_all(true).await {
-                Ok(_) => {
-                    log::info!("Shutdown flush complete, exiting...");
-                    std::process::exit(0);
-                }
-                Err(e) => {
-                    log::error!("Shutdown flush failed: {}", e);
-                    std::process::exit(1);
-                }
-            }
-        }
-
         // Try to find a handler that supports this route
         for handler in self.handlers.values() {
             for route in handler.supported_routes() {
@@ -259,9 +219,4 @@ pub async fn send_http_response(stream: &mut TcpStream, response: &HttpResponse)
 
     stream.write_all(http_response.as_bytes()).await?;
     Ok(())
-}
-
-/// Register system flush endpoints
-pub fn register_system_endpoints(api: &mut ApiRouter) {
-    api.handlers.insert("system".into(), ApiHandler::System);
 }

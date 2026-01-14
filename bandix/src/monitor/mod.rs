@@ -10,7 +10,7 @@ use std::collections::HashMap as StdHashMap;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use crate::storage;
 
 // 从连接模块重新导出 ConnectionModuleContext
 pub use connection::ConnectionModuleContext;
@@ -409,60 +409,5 @@ impl MonitorManager {
         }
 
         Ok(tasks)
-    }
-}
-
-
-/* =====================================================
-   FINAL SAFE FLUSH PATCH (daemon-safe & durable)
-   ===================================================== */
-
-
-static FLUSH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
-static CAPTURE_RUNNING: AtomicBool = AtomicBool::new(true);
-
-pub fn stop_capture() {
-    CAPTURE_RUNNING.store(false, Ordering::SeqCst);
-}
-
-pub fn capture_enabled() -> bool {
-    CAPTURE_RUNNING.load(Ordering::SeqCst)
-}
-
-pub async fn flush_interval() {
-    if FLUSH_IN_PROGRESS.load(Ordering::SeqCst) {
-        return;
-    }
-
-    connection::flush().await;
-    dns::flush().await;
-    traffic::flush().await;
-
-    
-}
-
-pub async fn flush_manual() {
-    flush_interval().await;
-}
-
-pub async fn flush_final() {
-    if FLUSH_IN_PROGRESS.swap(true, Ordering::SeqCst) {
-        return;
-    }
-
-    // 1️⃣ Stop semua ingest
-    stop_capture();
-
-    // 2️⃣ Flush semua buffer memory
-    connection::flush().await;
-    dns::flush().await;
-    traffic::flush().await;
-
-    // 3️⃣ Persist ke disk
-//    // TODO: Implement persist_all
-
-    // 4️⃣ Durability barrier
-    if let Err(e) = storage::sync_barrier() {
-        log::error!("sync_barrier failed: {:?}", e);
     }
 }
